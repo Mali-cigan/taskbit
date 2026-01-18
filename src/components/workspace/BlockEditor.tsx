@@ -1,11 +1,12 @@
 import { useRef, useEffect, KeyboardEvent } from 'react';
-import { Block, BlockType } from '@/types/workspace';
-import { GripVertical, Plus, Trash2, Check } from 'lucide-react';
+import { Block, BlockType, isPremiumBlock } from '@/types/workspace';
+import { GripVertical, Plus, Trash2, Check, AlertCircle, Quote, Code, Table, ChevronRight, Image, Link, Layout, Database, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -16,6 +17,7 @@ interface BlockEditorProps {
   onAddBlock: (type: BlockType) => void;
   onFocus?: () => void;
   autoFocus?: boolean;
+  isPro?: boolean;
 }
 
 const blockTypeConfig: Record<BlockType, { placeholder: string; className: string }> = {
@@ -43,9 +45,46 @@ const blockTypeConfig: Record<BlockType, { placeholder: string; className: strin
     placeholder: '',
     className: '',
   },
+  // Premium blocks
+  callout: {
+    placeholder: 'Type a callout...',
+    className: 'text-base leading-relaxed',
+  },
+  quote: {
+    placeholder: 'Type a quote...',
+    className: 'text-base leading-relaxed italic',
+  },
+  code: {
+    placeholder: 'Write some code...',
+    className: 'font-mono text-sm',
+  },
+  table: {
+    placeholder: 'Table',
+    className: '',
+  },
+  toggle: {
+    placeholder: 'Toggle heading',
+    className: 'text-base font-medium',
+  },
+  image: {
+    placeholder: 'Add an image URL...',
+    className: 'text-base',
+  },
+  embed: {
+    placeholder: 'Paste embed URL...',
+    className: 'text-base',
+  },
+  kanban: {
+    placeholder: 'Kanban board',
+    className: '',
+  },
+  database: {
+    placeholder: 'Database',
+    className: '',
+  },
 };
 
-const blockTypes: { type: BlockType; label: string; icon: string }[] = [
+const basicBlockTypes: { type: BlockType; label: string; icon: string }[] = [
   { type: 'text', label: 'Text', icon: '📝' },
   { type: 'heading1', label: 'Heading 1', icon: '𝗛' },
   { type: 'heading2', label: 'Heading 2', icon: '𝗵' },
@@ -54,6 +93,25 @@ const blockTypes: { type: BlockType; label: string; icon: string }[] = [
   { type: 'divider', label: 'Divider', icon: '—' },
 ];
 
+const premiumBlockTypes: { type: BlockType; label: string; icon: React.ReactNode }[] = [
+  { type: 'callout', label: 'Callout', icon: <AlertCircle className="w-4 h-4" /> },
+  { type: 'quote', label: 'Quote', icon: <Quote className="w-4 h-4" /> },
+  { type: 'code', label: 'Code', icon: <Code className="w-4 h-4" /> },
+  { type: 'table', label: 'Table', icon: <Table className="w-4 h-4" /> },
+  { type: 'toggle', label: 'Toggle', icon: <ChevronRight className="w-4 h-4" /> },
+  { type: 'image', label: 'Image', icon: <Image className="w-4 h-4" /> },
+  { type: 'embed', label: 'Embed', icon: <Link className="w-4 h-4" /> },
+  { type: 'kanban', label: 'Kanban', icon: <Layout className="w-4 h-4" /> },
+  { type: 'database', label: 'Database', icon: <Database className="w-4 h-4" /> },
+];
+
+const calloutStyles = {
+  info: 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400',
+  warning: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-400',
+  success: 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400',
+  error: 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400',
+};
+
 export function BlockEditor({
   block,
   onUpdate,
@@ -61,6 +119,7 @@ export function BlockEditor({
   onAddBlock,
   onFocus,
   autoFocus,
+  isPro = false,
 }: BlockEditorProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const config = blockTypeConfig[block.type];
@@ -87,6 +146,15 @@ export function BlockEditor({
     textarea.style.height = `${textarea.scrollHeight}px`;
   };
 
+  const handleAddBlock = (type: BlockType) => {
+    if (isPremiumBlock(type) && !isPro) {
+      // Could show upgrade modal here
+      return;
+    }
+    onAddBlock(type);
+  };
+
+  // Divider block
   if (block.type === 'divider') {
     return (
       <div className="group relative flex items-center py-2">
@@ -106,6 +174,303 @@ export function BlockEditor({
     );
   }
 
+  // Callout block
+  if (block.type === 'callout') {
+    const calloutType = block.calloutType || 'info';
+    return (
+      <div className="group relative py-1">
+        <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
+                <Plus className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {basicBlockTypes.map(({ type, label, icon }) => (
+                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
+                  <span className="w-6">{icon}</span>
+                  <span>{label}</span>
+                </DropdownMenuItem>
+              ))}
+              {isPro && (
+                <>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
+                    <Crown className="w-3 h-3" /> Pro Blocks
+                  </div>
+                  {premiumBlockTypes.map(({ type, label, icon }) => (
+                    <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
+                      <span className="w-6">{icon}</span>
+                      <span>{label}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
+            <GripVertical className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className={cn(
+          "flex items-start gap-3 p-3 rounded-lg border",
+          calloutStyles[calloutType]
+        )}>
+          <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+          <textarea
+            ref={inputRef}
+            value={block.content}
+            onChange={(e) => {
+              onUpdate({ content: e.target.value });
+              adjustHeight(e.target);
+            }}
+            onKeyDown={handleKeyDown}
+            onFocus={onFocus}
+            placeholder={config.placeholder}
+            rows={1}
+            className={cn(
+              "flex-1 bg-transparent border-none outline-none resize-none overflow-hidden",
+              "placeholder:text-current placeholder:opacity-50",
+              config.className
+            )}
+          />
+        </div>
+
+        <button
+          onClick={onDelete}
+          className="absolute -right-8 top-1 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  // Quote block
+  if (block.type === 'quote') {
+    return (
+      <div className="group relative py-1">
+        <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
+                <Plus className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {basicBlockTypes.map(({ type, label, icon }) => (
+                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
+                  <span className="w-6">{icon}</span>
+                  <span>{label}</span>
+                </DropdownMenuItem>
+              ))}
+              {isPro && (
+                <>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
+                    <Crown className="w-3 h-3" /> Pro Blocks
+                  </div>
+                  {premiumBlockTypes.map(({ type, label, icon }) => (
+                    <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
+                      <span className="w-6">{icon}</span>
+                      <span>{label}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
+            <GripVertical className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex items-start border-l-4 border-muted-foreground/30 pl-4">
+          <textarea
+            ref={inputRef}
+            value={block.content}
+            onChange={(e) => {
+              onUpdate({ content: e.target.value });
+              adjustHeight(e.target);
+            }}
+            onKeyDown={handleKeyDown}
+            onFocus={onFocus}
+            placeholder={config.placeholder}
+            rows={1}
+            className={cn(
+              "flex-1 bg-transparent border-none outline-none resize-none overflow-hidden",
+              "placeholder:text-placeholder",
+              config.className
+            )}
+          />
+        </div>
+
+        <button
+          onClick={onDelete}
+          className="absolute -right-8 top-1 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  // Code block
+  if (block.type === 'code') {
+    return (
+      <div className="group relative py-1">
+        <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
+                <Plus className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {basicBlockTypes.map(({ type, label, icon }) => (
+                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
+                  <span className="w-6">{icon}</span>
+                  <span>{label}</span>
+                </DropdownMenuItem>
+              ))}
+              {isPro && (
+                <>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
+                    <Crown className="w-3 h-3" /> Pro Blocks
+                  </div>
+                  {premiumBlockTypes.map(({ type, label, icon }) => (
+                    <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
+                      <span className="w-6">{icon}</span>
+                      <span>{label}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
+            <GripVertical className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="rounded-lg bg-muted/50 border border-border p-4 overflow-x-auto">
+          <textarea
+            ref={inputRef}
+            value={block.content}
+            onChange={(e) => {
+              onUpdate({ content: e.target.value });
+              adjustHeight(e.target);
+            }}
+            onFocus={onFocus}
+            placeholder={config.placeholder}
+            rows={3}
+            className={cn(
+              "w-full bg-transparent border-none outline-none resize-none",
+              "placeholder:text-placeholder",
+              config.className
+            )}
+          />
+        </div>
+
+        <button
+          onClick={onDelete}
+          className="absolute -right-8 top-1 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  // Toggle block
+  if (block.type === 'toggle') {
+    return (
+      <div className="group relative py-1">
+        <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
+                <Plus className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {basicBlockTypes.map(({ type, label, icon }) => (
+                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
+                  <span className="w-6">{icon}</span>
+                  <span>{label}</span>
+                </DropdownMenuItem>
+              ))}
+              {isPro && (
+                <>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
+                    <Crown className="w-3 h-3" /> Pro Blocks
+                  </div>
+                  {premiumBlockTypes.map(({ type, label, icon }) => (
+                    <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
+                      <span className="w-6">{icon}</span>
+                      <span>{label}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
+            <GripVertical className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <button
+            onClick={() => onUpdate({ collapsed: !block.collapsed })}
+            className="p-0.5 mt-0.5 rounded hover:bg-hover-overlay transition-gentle"
+          >
+            <ChevronRight className={cn(
+              "w-4 h-4 transition-transform",
+              !block.collapsed && "rotate-90"
+            )} />
+          </button>
+          <div className="flex-1">
+            <textarea
+              ref={inputRef}
+              value={block.content}
+              onChange={(e) => {
+                onUpdate({ content: e.target.value });
+                adjustHeight(e.target);
+              }}
+              onKeyDown={handleKeyDown}
+              onFocus={onFocus}
+              placeholder={config.placeholder}
+              rows={1}
+              className={cn(
+                "w-full bg-transparent border-none outline-none resize-none overflow-hidden",
+                "placeholder:text-placeholder",
+                config.className
+              )}
+            />
+            {!block.collapsed && (
+              <div className="pl-2 mt-2 border-l-2 border-border">
+                <p className="text-sm text-muted-foreground">Toggle content goes here...</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <button
+          onClick={onDelete}
+          className="absolute -right-8 top-1 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  // Default block (text, headings, checklist)
   return (
     <div className="group relative flex items-start py-0.5">
       {/* Left controls */}
@@ -117,12 +482,37 @@ export function BlockEditor({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
-            {blockTypes.map(({ type, label, icon }) => (
-              <DropdownMenuItem key={type} onClick={() => onAddBlock(type)}>
+            {basicBlockTypes.map(({ type, label, icon }) => (
+              <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
                 <span className="w-6">{icon}</span>
                 <span>{label}</span>
               </DropdownMenuItem>
             ))}
+            {isPro && (
+              <>
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
+                  <Crown className="w-3 h-3" /> Pro Blocks
+                </div>
+                {premiumBlockTypes.map(({ type, label, icon }) => (
+                  <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
+                    <span className="w-6">{icon}</span>
+                    <span>{label}</span>
+                  </DropdownMenuItem>
+                ))}
+              </>
+            )}
+            {!isPro && (
+              <>
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Crown className="w-3 h-3" /> Pro Blocks
+                  </div>
+                  <p className="text-xs opacity-75">Upgrade to unlock callouts, code, tables, and more</p>
+                </div>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
         <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">

@@ -10,10 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Loader2, Moon, Sun, Monitor, Users, Crown, Check } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Loader2, Moon, Sun, Monitor, Users, Crown, Check, Shield, LayoutDashboard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { GoogleIntegrationsPanel } from '@/components/integrations/GoogleIntegrationsPanel';
-
 export default function Settings() {
   const { user, loading, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -24,7 +24,15 @@ export default function Settings() {
   const [displayName, setDisplayName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-  const { isPro, loading: isLoadingSubscription } = useSubscription();
+  const { isPro, subscription, loading: isLoadingSubscription } = useSubscription();
+  
+  const [invitedMembers, setInvitedMembers] = useState<{email: string; status: string}[]>([]);
+  const [newInviteEmail, setNewInviteEmail] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
+  const [hasTeamPlan, setHasTeamPlan] = useState(false);
+  
+  // Pro users can invite up to 2 people, Team users have their seat limit
+  const PRO_INVITE_LIMIT = 2;
 
   useEffect(() => {
     if (!loading && !user) {
@@ -285,33 +293,131 @@ export default function Settings() {
               <div>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  Team
+                  Team Collaboration
                 </CardTitle>
-                <CardDescription>Collaborate with your team members</CardDescription>
+                <CardDescription>
+                  {isPro && !hasTeamPlan ? (
+                    <>Invite up to {PRO_INVITE_LIMIT} people with Pro plan</>
+                  ) : hasTeamPlan ? (
+                    <>Manage your team workspace</>
+                  ) : (
+                    <>Collaborate with your team members</>
+                  )}
+                </CardDescription>
               </div>
-              {!isPro && (
-                <Link to="/pricing">
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <Crown className="w-3 h-3" />
-                    Upgrade to Pro
-                  </Button>
-                </Link>
-              )}
+              <div className="flex items-center gap-2">
+                {hasTeamPlan && (
+                  <Link to="/admin">
+                    <Button variant="outline" size="sm" className="gap-1">
+                      <LayoutDashboard className="w-3 h-3" />
+                      Admin Dashboard
+                    </Button>
+                  </Link>
+                )}
+                {!isPro && (
+                  <Link to="/pricing">
+                    <Button variant="outline" size="sm" className="gap-1">
+                      <Crown className="w-3 h-3" />
+                      Upgrade to Pro
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             {isPro ? (
               <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Invite team members to collaborate on your workspace.
-                </p>
+                {/* Invite limit indicator for Pro (non-team) */}
+                {!hasTeamPlan && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="gap-1">
+                        <Users className="w-3 h-3" />
+                        {invitedMembers.length} / {PRO_INVITE_LIMIT} invites used
+                      </Badge>
+                    </div>
+                    <Link to="/pricing">
+                      <Button variant="ghost" size="sm" className="text-xs gap-1">
+                        <Shield className="w-3 h-3" />
+                        Upgrade to Team for unlimited
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+
+                {/* Invite form */}
                 <div className="flex gap-2">
-                  <Input placeholder="colleague@example.com" className="flex-1" />
-                  <Button>Invite</Button>
+                  <Input 
+                    placeholder="colleague@example.com" 
+                    className="flex-1"
+                    value={newInviteEmail}
+                    onChange={(e) => setNewInviteEmail(e.target.value)}
+                    type="email"
+                    disabled={!hasTeamPlan && invitedMembers.length >= PRO_INVITE_LIMIT}
+                  />
+                  <Button 
+                    onClick={async () => {
+                      if (!newInviteEmail.trim() || !user) return;
+                      if (!hasTeamPlan && invitedMembers.length >= PRO_INVITE_LIMIT) {
+                        toast({
+                          title: "Invite limit reached",
+                          description: `Pro plan allows up to ${PRO_INVITE_LIMIT} invites. Upgrade to Team for unlimited.`,
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      setIsInviting(true);
+                      // Simulated invite - in production this would create a workspace_member record
+                      setInvitedMembers([...invitedMembers, { email: newInviteEmail, status: 'pending' }]);
+                      setNewInviteEmail('');
+                      setIsInviting(false);
+                      toast({
+                        title: "Invite sent",
+                        description: `Invitation sent to ${newInviteEmail}`,
+                      });
+                    }}
+                    disabled={isInviting || (!hasTeamPlan && invitedMembers.length >= PRO_INVITE_LIMIT)}
+                  >
+                    {isInviting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Invite'}
+                  </Button>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  No team members yet
-                </div>
+
+                {/* Invited members list */}
+                {invitedMembers.length > 0 ? (
+                  <div className="space-y-2">
+                    {invitedMembers.map((member, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 rounded-lg border border-border">
+                        <span className="text-sm">{member.email}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {member.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    No team members invited yet
+                  </div>
+                )}
+
+                {/* Team plan upsell for Pro users */}
+                {!hasTeamPlan && (
+                  <div className="mt-4 p-4 rounded-lg bg-accent/10 border border-accent/30">
+                    <h4 className="font-medium text-sm flex items-center gap-2 mb-2">
+                      <Crown className="w-4 h-4 text-accent" />
+                      Need more team features?
+                    </h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Upgrade to Team plan for unlimited members, SSO, admin dashboard, and API access.
+                    </p>
+                    <Link to="/pricing">
+                      <Button size="sm" variant="outline">
+                        View Team Plan
+                      </Button>
+                    </Link>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-6">

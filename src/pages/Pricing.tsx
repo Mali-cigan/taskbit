@@ -124,7 +124,8 @@ export default function Pricing() {
         window.location.href = '/auth';
         return;
       }
-      setShowTeamModal(true);
+      // Navigate to dedicated team setup page
+      navigate('/team-setup');
       return;
     }
 
