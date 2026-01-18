@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocks: {
+        Row: {
+          checked: boolean | null
+          content: string
+          created_at: string
+          id: string
+          page_id: string
+          position: number
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checked?: boolean | null
+          content?: string
+          created_at?: string
+          id?: string
+          page_id: string
+          position?: number
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          checked?: boolean | null
+          content?: string
+          created_at?: string
+          id?: string
+          page_id?: string
+          position?: number
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocks_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_integrations: {
         Row: {
           access_token: string | null
@@ -51,6 +95,36 @@ export type Database = {
           refresh_token?: string | null
           scopes?: string[] | null
           token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pages: {
+        Row: {
+          created_at: string
+          icon: string
+          id: string
+          position: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string
+          id?: string
+          position?: number
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string
+          id?: string
+          position?: number
+          title?: string
           updated_at?: string
           user_id?: string
         }
