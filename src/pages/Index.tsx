@@ -52,6 +52,7 @@ const Index = () => {
     pages,
     activePage,
     activePageId,
+    isLoading: workspaceLoading,
     setActivePageId,
     createPage,
     deletePage,
@@ -63,7 +64,7 @@ const Index = () => {
   } = useWorkspace();
 
   // Show loading state
-  if (loading) {
+  if (loading || workspaceLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -74,7 +75,7 @@ const Index = () => {
   // Don't render if not authenticated
   if (!user) return null;
 
-  if (!activePage) return null;
+  if (!activePage || !activePageId) return null;
 
   return (
     <div className="flex h-screen bg-background">
