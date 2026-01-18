@@ -106,7 +106,8 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${origin}/?success=true`,
+      // Return users to pricing so we can sync entitlements immediately
+      success_url: `${origin}/pricing?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing?canceled=true`,
       allow_promotion_codes: true, // Always allow promo codes
     };
