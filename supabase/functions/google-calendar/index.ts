@@ -106,7 +106,18 @@ serve(async (req) => {
     );
 
     const url = new URL(req.url);
-    const action = url.searchParams.get("action") || "list";
+    let action = url.searchParams.get("action");
+    
+    // If not in URL, try to get from body
+    if (!action) {
+      try {
+        const clonedReq = req.clone();
+        const body = await clonedReq.json();
+        action = body.action || "list";
+      } catch {
+        action = "list";
+      }
+    }
 
     if (action === "list") {
       // Get upcoming events
