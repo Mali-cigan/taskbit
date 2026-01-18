@@ -69,10 +69,10 @@ export function PageEditor({
       {/* Page Content */}
       <div className="max-w-3xl mx-auto px-12 py-16">
         {/* Icon & Title */}
-        <div className="mb-8">
+        <div className="mb-6 flex items-center gap-3">
           <Popover>
             <PopoverTrigger asChild>
-              <button className="text-6xl hover:bg-hover-overlay rounded-lg p-2 -ml-2 transition-gentle">
+              <button className="text-3xl hover:bg-hover-overlay rounded-md p-1.5 transition-gentle">
                 {page.icon}
               </button>
             </PopoverTrigger>
@@ -82,7 +82,7 @@ export function PageEditor({
                   <button
                     key={emoji}
                     onClick={() => onUpdateIcon(emoji)}
-                    className="text-2xl p-2 hover:bg-hover-overlay rounded-md transition-gentle"
+                    className="text-xl p-2 hover:bg-hover-overlay rounded-md transition-gentle"
                   >
                     {emoji}
                   </button>
@@ -95,7 +95,7 @@ export function PageEditor({
             value={page.title}
             onChange={(e) => onUpdateTitle(e.target.value)}
             placeholder="Untitled"
-            className="w-full text-4xl font-serif font-bold bg-transparent border-none outline-none placeholder:text-placeholder mt-2"
+            className="flex-1 text-3xl font-semibold bg-transparent border-none outline-none placeholder:text-placeholder"
           />
         </div>
 
