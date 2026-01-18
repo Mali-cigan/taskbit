@@ -1,7 +1,13 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+const PRO_PRICE_ID = 'price_1Sqvy9KefwlQqUtJgM5mDtOr';
 
 const plans = [
   {
@@ -53,6 +59,49 @@ const plans = [
 ];
 
 export default function Pricing() {
+  const { user } = useAuth();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const handleSubscribe = async (planName: string) => {
+    if (planName === 'Free') {
+      window.location.href = '/auth';
+      return;
+    }
+
+    if (planName === 'Team') {
+      toast.info('Contact us at team@taskbit.com for Team plans');
+      return;
+    }
+
+    if (!user) {
+      window.location.href = '/auth';
+      return;
+    }
+
+    setLoadingPlan(planName);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { priceId: PRO_PRICE_ID },
+      });
+
+      if (error) {
+        console.error('Checkout error:', error);
+        toast.error('Failed to create checkout session');
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      toast.error('Something went wrong');
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -60,9 +109,15 @@ export default function Pricing() {
         <Link to="/pricing" className="font-semibold text-foreground text-lg">
           Taskbit
         </Link>
-        <Link to="/auth">
-          <Button size="sm">Sign In</Button>
-        </Link>
+        {user ? (
+          <Link to="/">
+            <Button size="sm">Go to App</Button>
+          </Link>
+        ) : (
+          <Link to="/auth">
+            <Button size="sm">Sign In</Button>
+          </Link>
+        )}
       </header>
 
       {/* Hero */}
@@ -117,14 +172,18 @@ export default function Pricing() {
                     </li>
                   ))}
                 </ul>
-                <Link to="/auth">
-                  <Button
-                    className="w-full"
-                    variant={plan.popular ? 'default' : 'outline'}
-                  >
-                    {plan.cta}
-                  </Button>
-                </Link>
+                <Button
+                  className="w-full"
+                  variant={plan.popular ? 'default' : 'outline'}
+                  onClick={() => handleSubscribe(plan.name)}
+                  disabled={loadingPlan === plan.name}
+                >
+                  {loadingPlan === plan.name ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    plan.cta
+                  )}
+                </Button>
               </CardContent>
             </Card>
           ))}
