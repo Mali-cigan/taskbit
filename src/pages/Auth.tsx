@@ -102,11 +102,18 @@ export default function Auth() {
         <Link to="/pricing" className="font-semibold text-foreground text-lg">
           Taskbit
         </Link>
-        <Link to="/pricing">
-          <Button variant="ghost" size="sm">
-            View Pricing
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/pricing">
+            <Button variant="ghost" size="sm">
+              View Pricing
+            </Button>
+          </Link>
+          <Link to="/pricing">
+            <Button size="sm">
+              Upgrade
+            </Button>
+          </Link>
+        </div>
       </header>
 
       {/* Auth Form */}
