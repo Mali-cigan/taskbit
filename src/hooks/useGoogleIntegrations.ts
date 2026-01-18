@@ -65,38 +65,44 @@ export function useGoogleIntegrations() {
   }, [user]);
 
   const connect = useCallback(async () => {
-    const { data, error } = await supabase.functions.invoke('google-auth', {
-      body: {},
-    });
+    try {
+      // Call google-auth with action=authorize query param
+      const { data, error } = await supabase.functions.invoke('google-auth', {
+        body: { action: 'authorize' },
+      });
 
-    if (error) {
-      throw new Error(error.message);
-    }
+      if (error) {
+        console.error('Google auth error:', error);
+        throw new Error(error.message);
+      }
 
-    // The function returns an authorize URL we need to construct
-    const response = await supabase.functions.invoke('google-auth?action=authorize', {
-      body: {},
-    });
-
-    if (response.error) {
-      throw new Error(response.error.message);
-    }
-
-    if (response.data?.url) {
-      window.location.href = response.data.url;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No authorization URL returned');
+      }
+    } catch (err) {
+      console.error('Failed to connect Google:', err);
+      throw err;
     }
   }, []);
 
   const disconnect = useCallback(async () => {
-    const { error } = await supabase.functions.invoke('google-auth?action=disconnect', {
-      body: {},
-    });
+    try {
+      const { error } = await supabase.functions.invoke('google-auth', {
+        body: { action: 'disconnect' },
+      });
 
-    if (error) {
-      throw new Error(error.message);
+      if (error) {
+        console.error('Google disconnect error:', error);
+        throw new Error(error.message);
+      }
+
+      setIntegration(null);
+    } catch (err) {
+      console.error('Failed to disconnect Google:', err);
+      throw err;
     }
-
-    setIntegration(null);
   }, []);
 
   const fetchGmailMessages = useCallback(async (): Promise<GmailMessage[]> => {

@@ -2,6 +2,7 @@ import { Plus, ChevronLeft, Trash2, LogOut, User, Settings, Sparkles } from 'luc
 import { Page } from '@/types/workspace';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   DropdownMenu,
@@ -31,6 +32,7 @@ export function Sidebar({
   onToggle
 }: SidebarProps) {
   const { user, signOut } = useAuth();
+  const { isPro, loading: subscriptionLoading } = useSubscription();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -95,12 +97,14 @@ export function Sidebar({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <Link to="/pricing">
-          <Button variant="outline" className="w-full flex items-center justify-center gap-2 text-sm font-medium border-accent text-accent hover:bg-accent hover:text-accent-foreground">
-            <Sparkles className="w-4 h-4" />
-            Upgrade to Pro
-          </Button>
-        </Link>
+        {!subscriptionLoading && !isPro && (
+          <Link to="/pricing">
+            <Button variant="outline" className="w-full flex items-center justify-center gap-2 text-sm font-medium border-accent text-accent hover:bg-accent hover:text-accent-foreground">
+              <Sparkles className="w-4 h-4" />
+              Upgrade to Pro
+            </Button>
+          </Link>
+        )}
         <button onClick={onCreatePage} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-gentle text-sm font-medium">
           <Plus className="w-4 h-4" />
           New Page

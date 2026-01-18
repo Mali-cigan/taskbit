@@ -23,6 +23,7 @@ serve(async (req) => {
     const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
     
     if (!clientId || !clientSecret) {
+      console.error("Missing Google OAuth credentials");
       throw new Error("Google OAuth credentials not configured");
     }
 
@@ -40,12 +41,26 @@ serve(async (req) => {
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     
     if (userError || !userData.user) {
+      console.error("Auth error:", userError);
       throw new Error("Unauthorized");
     }
 
+    // Get action from URL query params or request body
     const url = new URL(req.url);
-    const action = url.searchParams.get("action");
+    let action = url.searchParams.get("action");
+    
+    // If not in URL, try to get from body
+    if (!action) {
+      try {
+        const body = await req.json();
+        action = body.action;
+      } catch {
+        // Body might be empty or not JSON
+      }
+    }
+
     const origin = req.headers.get("origin") || "https://taskbit.lovable.app";
+    console.log("Google auth action:", action, "user:", userData.user.id);
 
     if (action === "authorize") {
       // Generate Google OAuth URL
@@ -61,6 +76,8 @@ serve(async (req) => {
       authUrl.searchParams.set("prompt", "consent");
       authUrl.searchParams.set("state", state);
 
+      console.log("Generated auth URL for user:", userData.user.id);
+      
       return new Response(
         JSON.stringify({ url: authUrl.toString() }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -72,7 +89,10 @@ serve(async (req) => {
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
       
+      console.log("OAuth callback received, state (user_id):", state);
+      
       if (!code) {
+        console.error("No authorization code received");
         throw new Error("No authorization code received");
       }
 
@@ -97,6 +117,8 @@ serve(async (req) => {
         console.error("Token exchange error:", tokens);
         throw new Error(tokens.error_description || "Failed to exchange code for tokens");
       }
+
+      console.log("Tokens received successfully");
 
       // Store tokens in database using service role
       const supabaseAdmin = createClient(
@@ -124,6 +146,8 @@ serve(async (req) => {
         throw new Error("Failed to store integration tokens");
       }
 
+      console.log("Integration stored successfully for user:", state);
+
       // Redirect back to settings page
       return new Response(null, {
         status: 302,
@@ -138,10 +162,17 @@ serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
       );
 
-      await supabaseAdmin
+      const { error: deleteError } = await supabaseAdmin
         .from("google_integrations")
         .delete()
         .eq("user_id", userData.user.id);
+
+      if (deleteError) {
+        console.error("Delete error:", deleteError);
+        throw new Error("Failed to disconnect integration");
+      }
+
+      console.log("Integration disconnected for user:", userData.user.id);
 
       return new Response(
         JSON.stringify({ success: true }),
@@ -149,7 +180,7 @@ serve(async (req) => {
       );
     }
 
-    throw new Error("Invalid action");
+    throw new Error("Invalid action. Use 'authorize', 'callback', or 'disconnect'");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Google auth error:", errorMessage);

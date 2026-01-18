@@ -1,8 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Page, Block, BlockType } from '@/types/workspace';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { useRealtimeWorkspace } from './useRealtimeWorkspace';
+import { useUndoRedo } from './useUndoRedo';
 
 // Database types for pages and blocks
 interface DbPage {
@@ -43,8 +45,95 @@ export function useWorkspace() {
   const [pages, setPages] = useState<Page[]>([]);
   const [activePageId, setActivePageId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isInitialLoadRef = useRef(true);
+
+  // Undo/redo for pages state
+  const {
+    pushState: pushHistoryState,
+    undo: undoHistory,
+    redo: redoHistory,
+    canUndo,
+    canRedo,
+    reset: resetHistory,
+  } = useUndoRedo<Page[]>([]);
 
   const activePage = pages.find(p => p.id === activePageId) || pages[0] || null;
+
+  // Handle realtime page changes from other devices/tabs
+  const handlePageChange = useCallback((change: {
+    type: 'INSERT' | 'UPDATE' | 'DELETE';
+    page: Partial<Page> & { id: string };
+  }) => {
+    setPages(prev => {
+      if (change.type === 'DELETE') {
+        return prev.filter(p => p.id !== change.page.id);
+      }
+      
+      if (change.type === 'INSERT') {
+        // Check if page already exists
+        if (prev.some(p => p.id === change.page.id)) return prev;
+        
+        // Need to fetch full page data including blocks
+        return prev;
+      }
+      
+      if (change.type === 'UPDATE') {
+        return prev.map(p =>
+          p.id === change.page.id
+            ? { ...p, ...change.page }
+            : p
+        );
+      }
+      
+      return prev;
+    });
+  }, []);
+
+  // Handle realtime block changes from other devices/tabs
+  const handleBlockChange = useCallback((change: {
+    type: 'INSERT' | 'UPDATE' | 'DELETE';
+    pageId: string;
+    block: Partial<Block> & { id: string };
+  }) => {
+    setPages(prev => prev.map(page => {
+      if (page.id !== change.pageId) return page;
+      
+      if (change.type === 'DELETE') {
+        return {
+          ...page,
+          blocks: page.blocks.filter(b => b.id !== change.block.id),
+        };
+      }
+      
+      if (change.type === 'INSERT') {
+        // Check if block already exists
+        if (page.blocks.some(b => b.id === change.block.id)) return page;
+        
+        return {
+          ...page,
+          blocks: [...page.blocks, change.block as Block],
+        };
+      }
+      
+      if (change.type === 'UPDATE') {
+        return {
+          ...page,
+          blocks: page.blocks.map(b =>
+            b.id === change.block.id ? { ...b, ...change.block } : b
+          ),
+        };
+      }
+      
+      return page;
+    }));
+  }, []);
+
+  // Setup realtime sync
+  const { markLocalChange } = useRealtimeWorkspace({
+    userId: user?.id,
+    onPageChange: handlePageChange,
+    onBlockChange: handleBlockChange,
+  });
 
   // Load pages and blocks from database
   useEffect(() => {
@@ -104,6 +193,8 @@ export function useWorkspace() {
         });
 
         setPages(loadedPages);
+        resetHistory(loadedPages);
+        
         if (!activePageId && loadedPages.length > 0) {
           setActivePageId(loadedPages[0].id);
         }
@@ -116,6 +207,7 @@ export function useWorkspace() {
         });
       } finally {
         setIsLoading(false);
+        isInitialLoadRef.current = false;
       }
     };
 
@@ -170,6 +262,7 @@ export function useWorkspace() {
         };
 
         setPages([newPage]);
+        resetHistory([newPage]);
         setActivePageId(newPage.id);
       } catch (error) {
         console.error('Error creating default page:', error);
@@ -185,6 +278,33 @@ export function useWorkspace() {
 
     loadWorkspace();
   }, [user]);
+
+  // Push state to history when pages change (debounced)
+  useEffect(() => {
+    if (isInitialLoadRef.current || pages.length === 0) return;
+    
+    const timer = setTimeout(() => {
+      pushHistoryState(pages);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [pages, pushHistoryState]);
+
+  const undo = useCallback(() => {
+    const previousState = undoHistory();
+    if (previousState) {
+      setPages(previousState);
+      toast({ title: 'Undo', description: 'Change undone' });
+    }
+  }, [undoHistory]);
+
+  const redo = useCallback(() => {
+    const nextState = redoHistory();
+    if (nextState) {
+      setPages(nextState);
+      toast({ title: 'Redo', description: 'Change redone' });
+    }
+  }, [redoHistory]);
 
   const createPage = useCallback(async () => {
     if (!user) return null;
@@ -205,6 +325,7 @@ export function useWorkspace() {
       if (pageError) throw pageError;
 
       const dbPage = pageData as DbPage;
+      markLocalChange('pages', dbPage.id);
 
       // Create initial empty heading block
       const { data: blockData, error: blockError } = await supabase
@@ -222,6 +343,7 @@ export function useWorkspace() {
       if (blockError) throw blockError;
 
       const dbBlock = blockData as DbBlock;
+      markLocalChange('blocks', dbBlock.id);
 
       const newPage: Page = {
         id: dbPage.id,
@@ -249,12 +371,14 @@ export function useWorkspace() {
       });
       return null;
     }
-  }, [user, pages.length]);
+  }, [user, pages.length, markLocalChange]);
 
   const deletePage = useCallback(async (pageId: string) => {
     if (!user) return;
 
     try {
+      markLocalChange('pages', pageId);
+      
       const { error } = await supabase
         .from('pages')
         .delete()
@@ -280,7 +404,7 @@ export function useWorkspace() {
         variant: 'destructive',
       });
     }
-  }, [user, activePageId]);
+  }, [user, activePageId, markLocalChange]);
 
   const updatePageTitle = useCallback(async (pageId: string, title: string) => {
     if (!user) return;
@@ -289,20 +413,20 @@ export function useWorkspace() {
     setPages(prev => prev.map(p =>
       p.id === pageId ? { ...p, title, updatedAt: new Date() } : p
     ));
+    markLocalChange('pages', pageId);
 
     try {
       const { error } = await supabase
         .from('pages')
-        .update({ title })
+        .update({ title, updated_at: new Date().toISOString() })
         .eq('id', pageId)
         .eq('user_id', user.id);
 
       if (error) throw error;
     } catch (error) {
       console.error('Error updating page title:', error);
-      // Revert on error - would need to store previous value
     }
-  }, [user]);
+  }, [user, markLocalChange]);
 
   const updatePageIcon = useCallback(async (pageId: string, icon: string) => {
     if (!user) return;
@@ -311,11 +435,12 @@ export function useWorkspace() {
     setPages(prev => prev.map(p =>
       p.id === pageId ? { ...p, icon, updatedAt: new Date() } : p
     ));
+    markLocalChange('pages', pageId);
 
     try {
       const { error } = await supabase
         .from('pages')
-        .update({ icon })
+        .update({ icon, updated_at: new Date().toISOString() })
         .eq('id', pageId)
         .eq('user_id', user.id);
 
@@ -323,7 +448,7 @@ export function useWorkspace() {
     } catch (error) {
       console.error('Error updating page icon:', error);
     }
-  }, [user]);
+  }, [user, markLocalChange]);
 
   const addBlock = useCallback(async (pageId: string, type: BlockType, afterBlockId?: string) => {
     if (!user) return null;
@@ -356,6 +481,8 @@ export function useWorkspace() {
       if (error) throw error;
 
       const dbBlock = blockData as DbBlock;
+      markLocalChange('blocks', dbBlock.id);
+      
       const newBlock: Block = {
         id: dbBlock.id,
         type: dbBlock.type as BlockType,
@@ -386,7 +513,7 @@ export function useWorkspace() {
       });
       return null;
     }
-  }, [user, pages]);
+  }, [user, pages, markLocalChange]);
 
   const updateBlock = useCallback(async (pageId: string, blockId: string, updates: Partial<Block>) => {
     if (!user) return;
@@ -400,9 +527,12 @@ export function useWorkspace() {
         updatedAt: new Date(),
       };
     }));
+    markLocalChange('blocks', blockId);
 
     try {
-      const dbUpdates: Record<string, unknown> = {};
+      const dbUpdates: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
       if (updates.content !== undefined) dbUpdates.content = updates.content;
       if (updates.type !== undefined) dbUpdates.type = updates.type;
       if (updates.checked !== undefined) dbUpdates.checked = updates.checked;
@@ -417,7 +547,7 @@ export function useWorkspace() {
     } catch (error) {
       console.error('Error updating block:', error);
     }
-  }, [user]);
+  }, [user, markLocalChange]);
 
   const deleteBlock = useCallback(async (pageId: string, blockId: string) => {
     if (!user) return;
@@ -431,6 +561,7 @@ export function useWorkspace() {
         updatedAt: new Date(),
       };
     }));
+    markLocalChange('blocks', blockId);
 
     try {
       const { error } = await supabase
@@ -448,7 +579,7 @@ export function useWorkspace() {
         variant: 'destructive',
       });
     }
-  }, [user]);
+  }, [user, markLocalChange]);
 
   return {
     pages,
@@ -463,5 +594,9 @@ export function useWorkspace() {
     addBlock,
     updateBlock,
     deleteBlock,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   };
 }

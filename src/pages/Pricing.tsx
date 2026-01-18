@@ -2,14 +2,23 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, Minus, Plus, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 const PRO_PRICE_ID = 'price_1Sqvy9KefwlQqUtJgM5mDtOr';
+const TEAM_PRICE_PER_SEAT = 20; // $20 per seat
 
 const plans = [
   {
@@ -58,7 +67,7 @@ const plans = [
       'API access',
       'SSO authentication',
     ],
-    cta: 'Contact Sales',
+    cta: 'Configure Team',
     popular: false,
   },
 ];
@@ -72,6 +81,12 @@ export default function Pricing() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [showPromoInput, setShowPromoInput] = useState(false);
+  
+  // Team modal state
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [seatCount, setSeatCount] = useState(2);
+  const [teamEmails, setTeamEmails] = useState<string[]>(['']);
+  const [workspaceName, setWorkspaceName] = useState('');
 
   useEffect(() => {
     const success = searchParams.get('success') === 'true';
@@ -80,6 +95,7 @@ export default function Pricing() {
 
     handledSuccessRef.current = true;
     const sessionId = searchParams.get('session_id') ?? undefined;
+    const isTeam = searchParams.get('team') === 'true';
 
     (async () => {
       const { error } = await supabase.functions.invoke('sync-subscription', {
@@ -88,11 +104,11 @@ export default function Pricing() {
 
       if (error) {
         console.error('Failed to sync subscription after checkout:', error);
-        toast.error('Payment succeeded, but we could not activate Pro yet. Please try again in a minute.');
+        toast.error('Payment succeeded, but we could not activate yet. Please try again in a minute.');
         return;
       }
 
-      toast.success('Pro activated. Welcome!');
+      toast.success(isTeam ? 'Team plan activated. Welcome!' : 'Pro activated. Welcome!');
       navigate('/settings', { replace: true });
     })();
   }, [navigate, searchParams, user]);
@@ -104,7 +120,11 @@ export default function Pricing() {
     }
 
     if (planName === 'Team') {
-      toast.info('Contact us at team@taskbit.com for Team plans');
+      if (!user) {
+        window.location.href = '/auth';
+        return;
+      }
+      setShowTeamModal(true);
       return;
     }
 
@@ -142,6 +162,73 @@ export default function Pricing() {
       setLoadingPlan(null);
     }
   };
+
+  const handleTeamCheckout = async () => {
+    if (!user) return;
+
+    // Validate emails
+    const validEmails = teamEmails.filter(email => email.trim().length > 0);
+    if (validEmails.length !== seatCount - 1) {
+      toast.error(`Please enter ${seatCount - 1} team member emails`);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    for (const email of validEmails) {
+      if (!emailRegex.test(email)) {
+        toast.error(`Invalid email: ${email}`);
+        return;
+      }
+    }
+
+    setLoadingPlan('Team');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-team-checkout', {
+        body: {
+          seatCount,
+          teamEmails: validEmails,
+          workspaceName: workspaceName.trim() || 'Team Workspace',
+        },
+      });
+
+      if (error) {
+        console.error('Team checkout error:', error);
+        toast.error('Failed to create team checkout session');
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      toast.error('Something went wrong');
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
+  const updateSeatCount = (delta: number) => {
+    const newCount = Math.max(2, Math.min(100, seatCount + delta));
+    setSeatCount(newCount);
+    
+    // Adjust email inputs
+    const newEmailsNeeded = newCount - 1;
+    if (newEmailsNeeded > teamEmails.length) {
+      setTeamEmails([...teamEmails, ...Array(newEmailsNeeded - teamEmails.length).fill('')]);
+    } else if (newEmailsNeeded < teamEmails.length) {
+      setTeamEmails(teamEmails.slice(0, newEmailsNeeded));
+    }
+  };
+
+  const updateTeamEmail = (index: number, value: string) => {
+    const newEmails = [...teamEmails];
+    newEmails[index] = value;
+    setTeamEmails(newEmails);
+  };
+
+  const totalTeamPrice = seatCount * TEAM_PRICE_PER_SEAT;
 
   return (
     <div className="min-h-screen bg-background">
@@ -244,6 +331,11 @@ export default function Pricing() {
                 >
                   {loadingPlan === plan.name && !showPromoInput ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : plan.name === 'Team' ? (
+                    <>
+                      <Users className="w-4 h-4 mr-2" />
+                      {plan.cta}
+                    </>
                   ) : (
                     plan.cta
                   )}
@@ -263,6 +355,102 @@ export default function Pricing() {
           ))}
         </div>
       </section>
+
+      {/* Team Modal */}
+      <Dialog open={showTeamModal} onOpenChange={setShowTeamModal}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Configure Team Plan</DialogTitle>
+            <DialogDescription>
+              Set up your team workspace with shared access for all members.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Workspace Name */}
+            <div className="space-y-2">
+              <Label htmlFor="workspace-name">Workspace Name</Label>
+              <Input
+                id="workspace-name"
+                placeholder="e.g., Marketing Team"
+                value={workspaceName}
+                onChange={(e) => setWorkspaceName(e.target.value)}
+              />
+            </div>
+
+            {/* Seat Count */}
+            <div className="space-y-2">
+              <Label>Number of Seats</Label>
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => updateSeatCount(-1)}
+                  disabled={seatCount <= 2}
+                >
+                  <Minus className="w-4 h-4" />
+                </Button>
+                <span className="text-2xl font-bold w-12 text-center">{seatCount}</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => updateSeatCount(1)}
+                  disabled={seatCount >= 100}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {seatCount} seats × ${TEAM_PRICE_PER_SEAT}/month = <strong>${totalTeamPrice}/month</strong>
+              </p>
+            </div>
+
+            {/* Team Member Emails */}
+            <div className="space-y-2">
+              <Label>Team Member Emails</Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Enter email addresses for your {seatCount - 1} team member{seatCount > 2 ? 's' : ''} (you'll be automatically included as the owner)
+              </p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {teamEmails.map((email, index) => (
+                  <Input
+                    key={index}
+                    type="email"
+                    placeholder={`team-member-${index + 1}@company.com`}
+                    value={email}
+                    onChange={(e) => updateTeamEmail(index, e.target.value)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Summary */}
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <h4 className="font-medium">Order Summary</h4>
+              <div className="flex justify-between text-sm">
+                <span>Team Plan ({seatCount} seats)</span>
+                <span>${totalTeamPrice}/month</span>
+              </div>
+              <div className="flex justify-between font-semibold border-t pt-2">
+                <span>Total</span>
+                <span>${totalTeamPrice}/month</span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTeamModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleTeamCheckout} disabled={loadingPlan === 'Team'}>
+              {loadingPlan === 'Team' ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              Continue to Checkout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Footer */}
       <footer className="border-t border-border py-8 px-6 text-center">

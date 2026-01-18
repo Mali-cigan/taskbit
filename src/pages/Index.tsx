@@ -6,7 +6,13 @@ import { useWorkspace } from '@/hooks/useWorkspace';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Undo2, Redo2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const Index = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -48,6 +54,7 @@ const Index = () => {
       }
     })();
   }, [loading, location.search, navigate, user]);
+
   const {
     pages,
     activePage,
@@ -61,7 +68,32 @@ const Index = () => {
     addBlock,
     updateBlock,
     deleteBlock,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useWorkspace();
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   // Show loading state
   if (loading || workspaceLoading) {
@@ -88,16 +120,53 @@ const Index = () => {
         isCollapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
-      <PageEditor
-        page={activePage}
-        onUpdateTitle={(title) => updatePageTitle(activePageId, title)}
-        onUpdateIcon={(icon) => updatePageIcon(activePageId, icon)}
-        onAddBlock={(type, afterBlockId) => addBlock(activePageId, type, afterBlockId)}
-        onUpdateBlock={(blockId, updates) => updateBlock(activePageId, blockId, updates)}
-        onDeleteBlock={(blockId) => deleteBlock(activePageId, blockId)}
-        onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-        isSidebarCollapsed={sidebarCollapsed}
-      />
+      <div className="flex-1 flex flex-col">
+        {/* Undo/Redo toolbar */}
+        <div className="h-10 px-4 flex items-center gap-1 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={undo}
+                disabled={!canUndo}
+              >
+                <Undo2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Undo (⌘Z)</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={redo}
+                disabled={!canRedo}
+              >
+                <Redo2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Redo (⌘⇧Z)</TooltipContent>
+          </Tooltip>
+          <div className="flex-1" />
+          <span className="text-xs text-muted-foreground">
+            Synced across devices
+          </span>
+        </div>
+        <PageEditor
+          page={activePage}
+          onUpdateTitle={(title) => updatePageTitle(activePageId, title)}
+          onUpdateIcon={(icon) => updatePageIcon(activePageId, icon)}
+          onAddBlock={(type, afterBlockId) => addBlock(activePageId, type, afterBlockId)}
+          onUpdateBlock={(blockId, updates) => updateBlock(activePageId, blockId, updates)}
+          onDeleteBlock={(blockId) => deleteBlock(activePageId, blockId)}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          isSidebarCollapsed={sidebarCollapsed}
+        />
+      </div>
     </div>
   );
 };
