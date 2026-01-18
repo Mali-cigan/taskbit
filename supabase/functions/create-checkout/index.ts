@@ -78,8 +78,8 @@ serve(async (req) => {
       'price_1Sqvy9KefwlQqUtJgM5mDtOr', // Pro plan monthly
     ];
 
-    // Get request body for price ID
-    const { priceId } = await req.json();
+    // Get request body for price ID and optional promo code
+    const { priceId, promoCode } = await req.json();
     
     if (!priceId) {
       throw new Error("Price ID is required");
@@ -96,7 +96,8 @@ serve(async (req) => {
     // Get the origin for success/cancel URLs
     const origin = req.headers.get("origin") || "https://taskbit.lovable.app";
 
-    const session = await stripe.checkout.sessions.create({
+    // Build checkout session options
+    const sessionOptions: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       line_items: [
         {
@@ -107,7 +108,30 @@ serve(async (req) => {
       mode: "subscription",
       success_url: `${origin}/?success=true`,
       cancel_url: `${origin}/pricing?canceled=true`,
-    });
+      allow_promotion_codes: true, // Always allow promo codes
+    };
+
+    // If a specific promo code was provided, apply it directly
+    if (promoCode) {
+      console.log("Applying promo code:", promoCode);
+      // Look up the promotion code in Stripe
+      const promoCodes = await stripe.promotionCodes.list({
+        code: promoCode,
+        active: true,
+        limit: 1,
+      });
+      
+      if (promoCodes.data.length > 0) {
+        sessionOptions.discounts = [{ promotion_code: promoCodes.data[0].id }];
+        delete sessionOptions.allow_promotion_codes; // Can't use both
+      } else {
+        console.log("Promo code not found or inactive:", promoCode);
+        throw new Error("Invalid promo code");
+      }
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionOptions);
+
 
     console.log("Checkout session created:", session.id);
 

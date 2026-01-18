@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -36,6 +37,9 @@ const plans = [
       'Priority support',
       'Export to PDF',
       'Custom themes',
+      'Google Gmail integration',
+      'Google Calendar sync',
+      'Google Drive integration',
     ],
     cta: 'Start Free Trial',
     popular: true,
@@ -61,8 +65,10 @@ const plans = [
 export default function Pricing() {
   const { user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState('');
+  const [showPromoInput, setShowPromoInput] = useState(false);
 
-  const handleSubscribe = async (planName: string) => {
+  const handleSubscribe = async (planName: string, withPromo = false) => {
     if (planName === 'Free') {
       window.location.href = '/auth';
       return;
@@ -81,8 +87,14 @@ export default function Pricing() {
     setLoadingPlan(planName);
 
     try {
+      const body: { priceId: string; promoCode?: string } = { priceId: PRO_PRICE_ID };
+      
+      if (withPromo && promoCode.trim()) {
+        body.promoCode = promoCode.trim();
+      }
+
       const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { priceId: PRO_PRICE_ID },
+        body,
       });
 
       if (error) {
@@ -172,18 +184,51 @@ export default function Pricing() {
                     </li>
                   ))}
                 </ul>
+                
+                {plan.popular && showPromoInput && (
+                  <div className="mb-4">
+                    <Input
+                      placeholder="Enter promo code"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      className="mb-2"
+                    />
+                    <Button
+                      className="w-full"
+                      onClick={() => handleSubscribe(plan.name, true)}
+                      disabled={loadingPlan === plan.name || !promoCode.trim()}
+                    >
+                      {loadingPlan === plan.name ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        'Apply & Subscribe'
+                      )}
+                    </Button>
+                  </div>
+                )}
+                
                 <Button
                   className="w-full"
                   variant={plan.popular ? 'default' : 'outline'}
                   onClick={() => handleSubscribe(plan.name)}
                   disabled={loadingPlan === plan.name}
                 >
-                  {loadingPlan === plan.name ? (
+                  {loadingPlan === plan.name && !showPromoInput ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     plan.cta
                   )}
                 </Button>
+                
+                {plan.popular && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPromoInput(!showPromoInput)}
+                    className="w-full mt-2 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    {showPromoInput ? 'Hide promo code' : 'Have a promo code?'}
+                  </button>
+                )}
               </CardContent>
             </Card>
           ))}
