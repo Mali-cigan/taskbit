@@ -1,4 +1,4 @@
-import { Plus, ChevronLeft, Trash2, LogOut, User, Settings } from 'lucide-react';
+import { Plus, ChevronLeft, Trash2, LogOut, User, Settings, Sparkles } from 'lucide-react';
 import { Page } from '@/types/workspace';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 
 interface SidebarProps {
   pages: Page[];
@@ -94,6 +95,12 @@ export function Sidebar({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        <Link to="/pricing">
+          <Button variant="outline" className="w-full flex items-center justify-center gap-2 text-sm font-medium border-accent text-accent hover:bg-accent hover:text-accent-foreground">
+            <Sparkles className="w-4 h-4" />
+            Upgrade to Pro
+          </Button>
+        </Link>
         <button onClick={onCreatePage} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-gentle text-sm font-medium">
           <Plus className="w-4 h-4" />
           New Page
