@@ -92,7 +92,7 @@ serve(async (req) => {
         expand: ["items.data.price"],
       });
 
-      const hasProItem = sub.items.data.some((item) => {
+      const hasProItem = sub.items.data.some((item: Stripe.SubscriptionItem) => {
         const priceId = typeof item.price === "string" ? item.price : item.price.id;
         return PRO_PRICE_IDS.includes(priceId);
       });
@@ -137,7 +137,7 @@ serve(async (req) => {
         limit: 10,
       });
 
-      const preferred = subs.data.find((s) => s.status === "active" || s.status === "trialing") ?? subs.data[0];
+      const preferred = subs.data.find((s: Stripe.Subscription) => s.status === "active" || s.status === "trialing") ?? subs.data[0];
       if (preferred) {
         await deriveFromSubscription(preferred.id);
       }
