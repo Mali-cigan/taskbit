@@ -73,11 +73,22 @@ serve(async (req) => {
       console.log("Created new customer:", customerId);
     }
 
+    // Whitelist of allowed price IDs to prevent price manipulation attacks
+    const ALLOWED_PRICE_IDS = [
+      'price_1Sqvy9KefwlQqUtJgM5mDtOr', // Pro plan monthly
+    ];
+
     // Get request body for price ID
     const { priceId } = await req.json();
     
     if (!priceId) {
       throw new Error("Price ID is required");
+    }
+
+    // Validate price ID against whitelist
+    if (!ALLOWED_PRICE_IDS.includes(priceId)) {
+      console.error("Invalid price ID attempted:", priceId);
+      throw new Error("Invalid price ID");
     }
 
     console.log("Creating checkout session with price:", priceId);
