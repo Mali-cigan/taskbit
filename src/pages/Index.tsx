@@ -1,10 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '@/components/workspace/Sidebar';
 import { PageEditor } from '@/components/workspace/PageEditor';
 import { useWorkspace } from '@/hooks/useWorkspace';
+import { useAuth } from '@/hooks/useAuth';
+import { Loader2 } from 'lucide-react';
 
 const Index = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
   const {
     pages,
     activePage,
@@ -18,6 +30,18 @@ const Index = () => {
     updateBlock,
     deleteBlock,
   } = useWorkspace();
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!user) return null;
 
   if (!activePage) return null;
 

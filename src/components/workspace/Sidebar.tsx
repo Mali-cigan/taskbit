@@ -1,6 +1,15 @@
-import { Plus, ChevronLeft, Trash2 } from 'lucide-react';
+import { Plus, ChevronLeft, Trash2, LogOut, User } from 'lucide-react';
 import { Page } from '@/types/workspace';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
 interface SidebarProps {
   pages: Page[];
   activePageId: string;
@@ -19,6 +28,14 @@ export function Sidebar({
   isCollapsed,
   onToggle
 }: SidebarProps) {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
   return <aside className={cn("h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-gentle", isCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-64")}>
       {/* Header */}
       <div className="h-14 px-4 flex items-center justify-between border-b border-sidebar-border">
@@ -49,8 +66,26 @@ export function Sidebar({
         </nav>
       </div>
 
-      {/* Create Page Button */}
-      <div className="p-3 border-t border-sidebar-border">
+      {/* User Menu & Create Page Button */}
+      <div className="p-3 border-t border-sidebar-border space-y-2">
+        {user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent transition-gentle text-sm text-sidebar-foreground">
+                <User className="w-4 h-4" />
+                <span className="truncate flex-1 text-left">
+                  {user.email}
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         <button onClick={onCreatePage} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-gentle text-sm font-medium">
           <Plus className="w-4 h-4" />
           New Page
