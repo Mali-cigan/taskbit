@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { useTheme } from '@/components/ThemeProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ export default function Settings() {
   const [displayName, setDisplayName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-  const [isPro, setIsPro] = useState(false); // TODO: Check subscription status
+  const { isPro, loading: isLoadingSubscription } = useSubscription();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -97,7 +98,7 @@ export default function Settings() {
     navigate('/auth');
   };
 
-  if (loading || isLoadingProfile) {
+  if (loading || isLoadingProfile || isLoadingSubscription) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />

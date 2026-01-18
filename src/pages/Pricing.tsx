@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, Loader2 } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
 
 const PRO_PRICE_ID = 'price_1Sqvy9KefwlQqUtJgM5mDtOr';
 
@@ -64,9 +65,37 @@ const plans = [
 
 export default function Pricing() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const handledSuccessRef = useRef(false);
+
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [showPromoInput, setShowPromoInput] = useState(false);
+
+  useEffect(() => {
+    const success = searchParams.get('success') === 'true';
+    if (!success || !user) return;
+    if (handledSuccessRef.current) return;
+
+    handledSuccessRef.current = true;
+    const sessionId = searchParams.get('session_id') ?? undefined;
+
+    (async () => {
+      const { error } = await supabase.functions.invoke('sync-subscription', {
+        body: { force: true, sessionId },
+      });
+
+      if (error) {
+        console.error('Failed to sync subscription after checkout:', error);
+        toast.error('Payment succeeded, but we could not activate Pro yet. Please try again in a minute.');
+        return;
+      }
+
+      toast.success('Pro activated. Welcome!');
+      navigate('/settings', { replace: true });
+    })();
+  }, [navigate, searchParams, user]);
 
   const handleSubscribe = async (planName: string, withPromo = false) => {
     if (planName === 'Free') {

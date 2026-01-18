@@ -1,15 +1,19 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Sidebar } from '@/components/workspace/Sidebar';
 import { PageEditor } from '@/components/workspace/PageEditor';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 const Index = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const didSyncRef = useRef(false);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -17,6 +21,33 @@ const Index = () => {
       navigate('/auth');
     }
   }, [user, loading, navigate]);
+
+  // Sync subscription at least once per session (and handle post-checkout return).
+  useEffect(() => {
+    if (loading || !user) return;
+    if (didSyncRef.current) return;
+
+    didSyncRef.current = true;
+
+    const params = new URLSearchParams(location.search);
+    const fromCheckout = params.get('success') === 'true';
+
+    (async () => {
+      const { error } = await supabase.functions.invoke('sync-subscription', {
+        body: { force: fromCheckout },
+      });
+
+      if (fromCheckout) {
+        if (error) {
+          toast.error('Payment succeeded, but Pro is still activating. Try again in a minute.');
+        } else {
+          toast.success('Pro activated.');
+        }
+        // Clear query params
+        navigate('/', { replace: true });
+      }
+    })();
+  }, [loading, location.search, navigate, user]);
   const {
     pages,
     activePage,
