@@ -21,15 +21,15 @@ interface BlockEditorProps {
 const blockTypeConfig: Record<BlockType, { placeholder: string; className: string }> = {
   heading1: {
     placeholder: 'Heading 1',
-    className: 'text-3xl font-serif font-bold tracking-tight',
+    className: 'text-2xl font-semibold tracking-tight',
   },
   heading2: {
     placeholder: 'Heading 2',
-    className: 'text-2xl font-serif font-bold tracking-tight',
+    className: 'text-xl font-semibold tracking-tight',
   },
   heading3: {
     placeholder: 'Heading 3',
-    className: 'text-xl font-serif font-semibold',
+    className: 'text-lg font-medium',
   },
   text: {
     placeholder: 'Type something...',
