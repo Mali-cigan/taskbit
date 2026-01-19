@@ -106,8 +106,8 @@ export function useGoogleIntegrations() {
   }, []);
 
   const fetchGmailMessages = useCallback(async (): Promise<GmailMessage[]> => {
-    const { data, error } = await supabase.functions.invoke('google-gmail?action=list', {
-      body: {},
+    const { data, error } = await supabase.functions.invoke('google-gmail', {
+      body: { action: 'list' },
     });
 
     if (error) {
@@ -118,8 +118,8 @@ export function useGoogleIntegrations() {
   }, []);
 
   const fetchCalendarEvents = useCallback(async (): Promise<CalendarEvent[]> => {
-    const { data, error } = await supabase.functions.invoke('google-calendar?action=list', {
-      body: {},
+    const { data, error } = await supabase.functions.invoke('google-calendar', {
+      body: { action: 'list' },
     });
 
     if (error) {
@@ -136,8 +136,8 @@ export function useGoogleIntegrations() {
     description?: string;
     location?: string;
   }) => {
-    const { data, error } = await supabase.functions.invoke('google-calendar?action=create', {
-      body: event,
+    const { data, error } = await supabase.functions.invoke('google-calendar', {
+      body: { action: 'create', ...event },
     });
 
     if (error) {
@@ -148,9 +148,8 @@ export function useGoogleIntegrations() {
   }, []);
 
   const fetchDriveFiles = useCallback(async (folderId?: string): Promise<DriveFile[]> => {
-    const query = folderId ? `?action=list&folderId=${folderId}` : '?action=list';
-    const { data, error } = await supabase.functions.invoke(`google-drive${query}`, {
-      body: {},
+    const { data, error } = await supabase.functions.invoke('google-drive', {
+      body: { action: 'list', folderId },
     });
 
     if (error) {
@@ -161,8 +160,8 @@ export function useGoogleIntegrations() {
   }, []);
 
   const searchDriveFiles = useCallback(async (query: string): Promise<DriveFile[]> => {
-    const { data, error } = await supabase.functions.invoke(`google-drive?action=search&q=${encodeURIComponent(query)}`, {
-      body: {},
+    const { data, error } = await supabase.functions.invoke('google-drive', {
+      body: { action: 'search', q: query },
     });
 
     if (error) {

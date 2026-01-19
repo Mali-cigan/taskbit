@@ -1,6 +1,8 @@
 import { useRef, useEffect, KeyboardEvent } from 'react';
 import { Block, BlockType, isPremiumBlock } from '@/types/workspace';
 import { GripVertical, Plus, Trash2, Check, AlertCircle, Quote, Code, Table, ChevronRight, Image, Link, Layout, Database, Crown } from 'lucide-react';
+import { ImageBlock } from './ImageBlock';
+import { EmbedBlock } from './EmbedBlock';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -467,6 +469,28 @@ export function BlockEditor({
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
+    );
+  }
+
+  // Image block
+  if (block.type === 'image') {
+    return (
+      <ImageBlock
+        block={block}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+      />
+    );
+  }
+
+  // Embed block
+  if (block.type === 'embed') {
+    return (
+      <EmbedBlock
+        block={block}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+      />
     );
   }
 

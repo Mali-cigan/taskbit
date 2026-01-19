@@ -105,23 +105,23 @@ serve(async (req) => {
       clientSecret
     );
 
-    const url = new URL(req.url);
-    let action = url.searchParams.get("action");
+    let action = "list";
+    let requestBody: { action?: string; folderId?: string; q?: string; pageToken?: string } = {};
     
-    // If not in URL, try to get from body
-    if (!action) {
-      try {
-        const clonedReq = req.clone();
-        const body = await clonedReq.json();
-        action = body.action || "list";
-      } catch {
-        action = "list";
-      }
+    // Try to get action from body first
+    try {
+      const clonedReq = req.clone();
+      requestBody = await clonedReq.json();
+      action = requestBody.action || "list";
+    } catch {
+      // If body parsing fails, check URL params
+      const url = new URL(req.url);
+      action = url.searchParams.get("action") || "list";
     }
 
     if (action === "list") {
-      const folderId = url.searchParams.get("folderId") || "root";
-      const pageToken = url.searchParams.get("pageToken");
+      const folderId = requestBody.folderId || "root";
+      const pageToken = requestBody.pageToken;
 
       let apiUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&fields=files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink),nextPageToken&pageSize=20&orderBy=modifiedTime+desc`;
       
@@ -165,7 +165,7 @@ serve(async (req) => {
     }
 
     if (action === "search") {
-      const query = url.searchParams.get("q");
+      const query = requestBody.q;
       if (!query) {
         throw new Error("Search query required");
       }

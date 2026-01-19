@@ -107,18 +107,18 @@ serve(async (req) => {
       clientSecret
     );
 
-    const url = new URL(req.url);
-    let action = url.searchParams.get("action");
+    let action = "list";
+    let requestBody: { action?: string; messageId?: string } = {};
     
-    // If not in URL, try to get from body
-    if (!action) {
-      try {
-        const clonedReq = req.clone();
-        const body = await clonedReq.json();
-        action = body.action || "list";
-      } catch {
-        action = "list";
-      }
+    // Try to get action from body first
+    try {
+      const clonedReq = req.clone();
+      requestBody = await clonedReq.json();
+      action = requestBody.action || "list";
+    } catch {
+      // If body parsing fails, check URL params
+      const url = new URL(req.url);
+      action = url.searchParams.get("action") || "list";
     }
 
     if (action === "list") {
@@ -167,7 +167,7 @@ serve(async (req) => {
     }
 
     if (action === "read") {
-      const messageId = url.searchParams.get("messageId");
+      const messageId = requestBody.messageId;
       if (!messageId) {
         throw new Error("Message ID required");
       }

@@ -293,6 +293,65 @@ export type Database = {
           },
         ]
       }
+      workspace_sso_providers: {
+        Row: {
+          created_at: string
+          domain: string | null
+          enabled: boolean
+          id: string
+          oauth_authorize_url: string | null
+          oauth_client_id: string | null
+          oauth_client_secret: string | null
+          oauth_scopes: string | null
+          oauth_token_url: string | null
+          provider_type: string
+          saml_metadata_url: string | null
+          saml_metadata_xml: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          domain?: string | null
+          enabled?: boolean
+          id?: string
+          oauth_authorize_url?: string | null
+          oauth_client_id?: string | null
+          oauth_client_secret?: string | null
+          oauth_scopes?: string | null
+          oauth_token_url?: string | null
+          provider_type: string
+          saml_metadata_url?: string | null
+          saml_metadata_xml?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          domain?: string | null
+          enabled?: boolean
+          id?: string
+          oauth_authorize_url?: string | null
+          oauth_client_id?: string | null
+          oauth_client_secret?: string | null
+          oauth_scopes?: string | null
+          oauth_token_url?: string | null
+          provider_type?: string
+          saml_metadata_url?: string | null
+          saml_metadata_xml?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_sso_providers_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspaces: {
         Row: {
           created_at: string

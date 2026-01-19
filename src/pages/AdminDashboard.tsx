@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Loader2, Users, Crown, Shield, Settings, BarChart3, Plus, Trash2, Mail, Key, Check, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Users, Crown, Shield, Settings, BarChart3, Plus, Trash2, Mail, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { SSOConfigPanel } from '@/components/admin/SSOConfigPanel';
 
 interface TeamMember {
   id: string;
@@ -430,41 +431,7 @@ export default function AdminDashboard() {
 
           {/* Security Tab */}
           <TabsContent value="security" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Key className="w-5 h-5" />
-                  SSO Configuration
-                </CardTitle>
-                <CardDescription>
-                  Configure Single Sign-On for your organization
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 rounded-lg bg-muted/30 border border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">SAML 2.0</p>
-                      <p className="text-sm text-muted-foreground">
-                        Connect with Okta, OneLogin, Azure AD, and more
-                      </p>
-                    </div>
-                    <Button variant="outline">Configure</Button>
-                  </div>
-                </div>
-                <div className="p-4 rounded-lg bg-muted/30 border border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">OAuth 2.0 / OIDC</p>
-                      <p className="text-sm text-muted-foreground">
-                        Connect with custom OAuth providers
-                      </p>
-                    </div>
-                    <Button variant="outline">Configure</Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <SSOConfigPanel workspaceId={workspace.id} />
 
             <Card>
               <CardHeader>
