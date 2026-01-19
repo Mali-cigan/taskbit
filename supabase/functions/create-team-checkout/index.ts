@@ -47,29 +47,28 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { seatCount, teamEmails, workspaceName } = body;
+    const { seatCount, workspaceName, members } = body;
 
-    if (!seatCount || seatCount < 1 || seatCount > 100) {
+    // Support both old (teamEmails) and new (members) format
+    const teamEmails: string[] = members 
+      ? members.map((m: { email: string }) => m.email).filter((e: string) => e?.trim())
+      : body.teamEmails || [];
+
+    const actualSeatCount = seatCount || Math.max(teamEmails.length + 1, 1);
+
+    if (actualSeatCount < 1 || actualSeatCount > 100) {
       throw new Error("Seat count must be between 1 and 100");
     }
 
-    if (!teamEmails || !Array.isArray(teamEmails)) {
-      throw new Error("Team member emails are required");
-    }
-
-    // Validate emails
+    // Validate emails if provided
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     for (const teamEmail of teamEmails) {
-      if (!emailRegex.test(teamEmail)) {
+      if (teamEmail && !emailRegex.test(teamEmail)) {
         throw new Error(`Invalid email: ${teamEmail}`);
       }
     }
 
-    if (teamEmails.length !== seatCount - 1) {
-      throw new Error(`Expected ${seatCount - 1} team member emails (excluding yourself)`);
-    }
-
-    console.log("Creating team checkout session for user:", email, "seats:", seatCount);
+    console.log("Creating team checkout session for user:", email, "seats:", actualSeatCount);
 
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
@@ -129,7 +128,7 @@ serve(async (req) => {
       owner_email: email,
       workspace_name: workspaceName || "Team Workspace",
       team_emails: JSON.stringify(teamEmails),
-      seat_count: seatCount.toString(),
+      seat_count: actualSeatCount.toString(),
     };
 
     const session = await stripe.checkout.sessions.create({
@@ -137,7 +136,7 @@ serve(async (req) => {
       line_items: [
         {
           price: teamPrice.id,
-          quantity: seatCount,
+          quantity: actualSeatCount,
         },
       ],
       mode: "subscription",
@@ -149,13 +148,13 @@ serve(async (req) => {
       metadata: teamMetadata,
     });
 
-    console.log("Team checkout session created:", session.id, "seats:", seatCount);
+    console.log("Team checkout session created:", session.id, "seats:", actualSeatCount);
 
     return new Response(
       JSON.stringify({ 
         url: session.url,
-        totalAmount: TEAM_PRICE_PER_SEAT * seatCount,
-        seatCount,
+        totalAmount: TEAM_PRICE_PER_SEAT * actualSeatCount,
+        seatCount: actualSeatCount,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
