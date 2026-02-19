@@ -1,6 +1,6 @@
 import { useRef, useEffect, KeyboardEvent } from 'react';
 import { Block, BlockType, isPremiumBlock } from '@/types/workspace';
-import { GripVertical, Plus, Trash2, Check, AlertCircle, Quote, Code, Table, ChevronRight, Image, Link, Layout, Database, Crown } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Check, AlertCircle, Quote, Code, Table, ChevronRight, Image, Link, Layout, Database, Crown, List, ListOrdered, Sigma } from 'lucide-react';
 import { ImageBlock } from './ImageBlock';
 import { EmbedBlock } from './EmbedBlock';
 import { cn } from '@/lib/utils';
@@ -84,13 +84,27 @@ const blockTypeConfig: Record<BlockType, { placeholder: string; className: strin
     placeholder: 'Database',
     className: '',
   },
+  bullet: {
+    placeholder: 'List item',
+    className: 'text-base leading-relaxed',
+  },
+  numbered: {
+    placeholder: 'List item',
+    className: 'text-base leading-relaxed',
+  },
+  math: {
+    placeholder: 'Write a math expression (LaTeX)...',
+    className: 'font-mono text-sm',
+  },
 };
 
-const basicBlockTypes: { type: BlockType; label: string; icon: string }[] = [
+const basicBlockTypes: { type: BlockType; label: string; icon: React.ReactNode }[] = [
   { type: 'text', label: 'Text', icon: '📝' },
   { type: 'heading1', label: 'Heading 1', icon: '𝗛' },
   { type: 'heading2', label: 'Heading 2', icon: '𝗵' },
   { type: 'heading3', label: 'Heading 3', icon: 'h' },
+  { type: 'bullet', label: 'Bullet List', icon: <List className="w-4 h-4" /> },
+  { type: 'numbered', label: 'Numbered List', icon: <ListOrdered className="w-4 h-4" /> },
   { type: 'checklist', label: 'Checklist', icon: '☑️' },
   { type: 'divider', label: 'Divider', icon: '—' },
 ];
@@ -99,6 +113,7 @@ const premiumBlockTypes: { type: BlockType; label: string; icon: React.ReactNode
   { type: 'callout', label: 'Callout', icon: <AlertCircle className="w-4 h-4" /> },
   { type: 'quote', label: 'Quote', icon: <Quote className="w-4 h-4" /> },
   { type: 'code', label: 'Code', icon: <Code className="w-4 h-4" /> },
+  { type: 'math', label: 'Math', icon: <Sigma className="w-4 h-4" /> },
   { type: 'table', label: 'Table', icon: <Table className="w-4 h-4" /> },
   { type: 'toggle', label: 'Toggle', icon: <ChevronRight className="w-4 h-4" /> },
   { type: 'image', label: 'Image', icon: <Image className="w-4 h-4" /> },
@@ -125,6 +140,7 @@ export function BlockEditor({
 }: BlockEditorProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const config = blockTypeConfig[block.type];
+  
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -491,6 +507,158 @@ export function BlockEditor({
         onUpdate={onUpdate}
         onDelete={onDelete}
       />
+    );
+  }
+
+  // Bullet list block
+  if (block.type === 'bullet') {
+    return (
+      <div className="group relative flex items-start py-0.5 gap-2">
+        <div className="absolute -left-10 top-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
+                <Plus className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {basicBlockTypes.map(({ type, label, icon }) => (
+                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
+                  <span className="w-6 flex items-center">{icon}</span>
+                  <span>{label}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
+            <GripVertical className="w-4 h-4" />
+          </button>
+        </div>
+        <span className="mt-1 w-4 text-muted-foreground flex-shrink-0 text-center select-none leading-relaxed">•</span>
+        <textarea
+          ref={inputRef}
+          value={block.content}
+          onChange={(e) => {
+            onUpdate({ content: e.target.value });
+            adjustHeight(e.target);
+          }}
+          onKeyDown={handleKeyDown}
+          onFocus={onFocus}
+          placeholder={config.placeholder}
+          rows={1}
+          className={cn(
+            "flex-1 bg-transparent border-none outline-none resize-none overflow-hidden",
+            "placeholder:text-placeholder",
+            config.className
+          )}
+          style={{ minHeight: '1.5em' }}
+        />
+        <button
+          onClick={onDelete}
+          className="absolute -right-8 top-0.5 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  // Numbered list block
+  if (block.type === 'numbered') {
+    return (
+      <div className="group relative flex items-start py-0.5 gap-2">
+        <div className="absolute -left-10 top-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
+                <Plus className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {basicBlockTypes.map(({ type, label, icon }) => (
+                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
+                  <span className="w-6 flex items-center">{icon}</span>
+                  <span>{label}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
+            <GripVertical className="w-4 h-4" />
+          </button>
+        </div>
+        <span className="mt-0.5 w-5 text-muted-foreground flex-shrink-0 text-sm select-none text-right leading-relaxed">1.</span>
+        <textarea
+          ref={inputRef}
+          value={block.content}
+          onChange={(e) => {
+            onUpdate({ content: e.target.value });
+            adjustHeight(e.target);
+          }}
+          onKeyDown={handleKeyDown}
+          onFocus={onFocus}
+          placeholder={config.placeholder}
+          rows={1}
+          className={cn(
+            "flex-1 bg-transparent border-none outline-none resize-none overflow-hidden",
+            "placeholder:text-placeholder",
+            config.className
+          )}
+          style={{ minHeight: '1.5em' }}
+        />
+        <button
+          onClick={onDelete}
+          className="absolute -right-8 top-0.5 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  // Math block (Pro)
+  if (block.type === 'math') {
+    return (
+      <div className="group relative py-1">
+        <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
+            <GripVertical className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="rounded-lg bg-muted/30 border border-border p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Sigma className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground font-medium">Math (LaTeX)</span>
+          </div>
+          <textarea
+            ref={inputRef}
+            value={block.content}
+            onChange={(e) => {
+              onUpdate({ content: e.target.value });
+              adjustHeight(e.target);
+            }}
+            onFocus={onFocus}
+            placeholder={config.placeholder}
+            rows={2}
+            className={cn(
+              "w-full bg-transparent border-none outline-none resize-none",
+              "placeholder:text-placeholder",
+              config.className
+            )}
+          />
+          {block.content && (
+            <div className="mt-2 pt-2 border-t border-border">
+              <code className="text-sm text-foreground/70 italic">{block.content}</code>
+            </div>
+          )}
+        </div>
+        <button
+          onClick={onDelete}
+          className="absolute -right-8 top-1 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
     );
   }
 

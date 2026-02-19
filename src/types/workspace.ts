@@ -14,7 +14,11 @@ export type BlockType =
   | 'image'
   | 'embed'
   | 'kanban'
-  | 'database';
+  | 'database'
+  // New basic blocks
+  | 'bullet'
+  | 'numbered'
+  | 'math';
 
 export interface Block {
   id: string;
@@ -48,6 +52,7 @@ export const PREMIUM_BLOCK_TYPES: BlockType[] = [
   'embed',
   'kanban',
   'database',
+  'math',
 ];
 
 export const isPremiumBlock = (type: BlockType): boolean => {
