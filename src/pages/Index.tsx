@@ -68,6 +68,7 @@ const Index = () => {
     addBlock,
     updateBlock,
     deleteBlock,
+    reorderBlocks,
     undo,
     redo,
     canUndo,
@@ -158,11 +159,13 @@ const Index = () => {
         </div>
         <PageEditor
           page={activePage}
+          pageId={activePageId}
           onUpdateTitle={(title) => updatePageTitle(activePageId, title)}
           onUpdateIcon={(icon) => updatePageIcon(activePageId, icon)}
           onAddBlock={(type, afterBlockId) => addBlock(activePageId, type, afterBlockId)}
           onUpdateBlock={(blockId, updates) => updateBlock(activePageId, blockId, updates)}
           onDeleteBlock={(blockId) => deleteBlock(activePageId, blockId)}
+          onReorderBlocks={reorderBlocks}
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
           isSidebarCollapsed={sidebarCollapsed}
         />

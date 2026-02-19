@@ -581,6 +581,42 @@ export function useWorkspace() {
     }
   }, [user, markLocalChange]);
 
+  const reorderBlocks = useCallback(async (pageId: string, reorderedBlocks: Block[]) => {
+    if (!user) return;
+
+    // Optimistic update — instantly reorder in UI
+    setPages(prev => prev.map(p =>
+      p.id === pageId ? { ...p, blocks: reorderedBlocks, updatedAt: new Date() } : p
+    ));
+
+    // Persist new positions to DB
+    try {
+      const updates = reorderedBlocks.map((block, index) => ({
+        id: block.id,
+        position: index,
+        page_id: pageId,
+        user_id: user.id,
+        type: block.type,
+        content: block.content,
+        checked: block.checked ?? null,
+        updated_at: new Date().toISOString(),
+      }));
+
+      const { error } = await supabase
+        .from('blocks')
+        .upsert(updates, { onConflict: 'id' });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error reordering blocks:', error);
+      toast({
+        title: 'Error reordering blocks',
+        description: 'Failed to save block order.',
+        variant: 'destructive',
+      });
+    }
+  }, [user]);
+
   return {
     pages,
     activePage,
@@ -594,6 +630,7 @@ export function useWorkspace() {
     addBlock,
     updateBlock,
     deleteBlock,
+    reorderBlocks,
     undo,
     redo,
     canUndo,

@@ -1,4 +1,6 @@
 import { useRef, useEffect, KeyboardEvent } from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Block, BlockType, isPremiumBlock } from '@/types/workspace';
 import { GripVertical, Plus, Trash2, Check, AlertCircle, Quote, Code, Table, ChevronRight, Image, Link, Layout, Database, Crown, List, ListOrdered, Sigma } from 'lucide-react';
 import { ImageBlock } from './ImageBlock';
@@ -23,79 +25,24 @@ interface BlockEditorProps {
 }
 
 const blockTypeConfig: Record<BlockType, { placeholder: string; className: string }> = {
-  heading1: {
-    placeholder: 'Heading 1',
-    className: 'text-2xl font-semibold tracking-tight',
-  },
-  heading2: {
-    placeholder: 'Heading 2',
-    className: 'text-xl font-semibold tracking-tight',
-  },
-  heading3: {
-    placeholder: 'Heading 3',
-    className: 'text-lg font-medium',
-  },
-  text: {
-    placeholder: 'Type something...',
-    className: 'text-base leading-relaxed',
-  },
-  checklist: {
-    placeholder: 'To-do',
-    className: 'text-base leading-relaxed',
-  },
-  divider: {
-    placeholder: '',
-    className: '',
-  },
-  // Premium blocks
-  callout: {
-    placeholder: 'Type a callout...',
-    className: 'text-base leading-relaxed',
-  },
-  quote: {
-    placeholder: 'Type a quote...',
-    className: 'text-base leading-relaxed italic',
-  },
-  code: {
-    placeholder: 'Write some code...',
-    className: 'font-mono text-sm',
-  },
-  table: {
-    placeholder: 'Table',
-    className: '',
-  },
-  toggle: {
-    placeholder: 'Toggle heading',
-    className: 'text-base font-medium',
-  },
-  image: {
-    placeholder: 'Add an image URL...',
-    className: 'text-base',
-  },
-  embed: {
-    placeholder: 'Paste embed URL...',
-    className: 'text-base',
-  },
-  kanban: {
-    placeholder: 'Kanban board',
-    className: '',
-  },
-  database: {
-    placeholder: 'Database',
-    className: '',
-  },
-  bullet: {
-    placeholder: 'List item',
-    className: 'text-base leading-relaxed',
-  },
-  numbered: {
-    placeholder: 'List item',
-    className: 'text-base leading-relaxed',
-  },
-  math: {
-    placeholder: 'Write a math expression (LaTeX)...',
-    className: 'font-mono text-sm',
-  },
+  heading1: { placeholder: 'Heading 1', className: 'text-2xl font-semibold tracking-tight' },
+  heading2: { placeholder: 'Heading 2', className: 'text-xl font-semibold tracking-tight' },
+  heading3: { placeholder: 'Heading 3', className: 'text-lg font-medium' },
+  text: { placeholder: 'Type something...', className: 'text-base leading-relaxed' },
+  checklist: { placeholder: 'To-do', className: 'text-base leading-relaxed' },
+  divider: { placeholder: '', className: '' },
+  bullet: { placeholder: 'List item', className: 'text-base leading-relaxed' },
+  numbered: { placeholder: 'List item', className: 'text-base leading-relaxed' },
+  callout: { placeholder: 'Type a callout...', className: 'text-base leading-relaxed' },
+  quote: { placeholder: 'Type a quote...', className: 'text-base leading-relaxed italic' },
+  code: { placeholder: 'Write some code...', className: 'font-mono text-sm' },
+  math: { placeholder: 'Write a math expression (LaTeX)...', className: 'font-mono text-sm' },
+  table: { placeholder: 'Table', className: '' },
+  toggle: { placeholder: 'Toggle heading', className: 'text-base font-medium' },
+  image: { placeholder: 'Add an image URL...', className: 'text-base' },
+  embed: { placeholder: 'Paste embed URL...', className: 'text-base' },
+  kanban: { placeholder: 'Kanban board', className: '' },
+  database: { placeholder: 'Database', className: '' },
 };
 
 const basicBlockTypes: { type: BlockType; label: string; icon: React.ReactNode }[] = [
@@ -129,6 +76,57 @@ const calloutStyles = {
   error: 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400',
 };
 
+// Shared block menu shown in the left gutter
+function BlockMenu({
+  isPro,
+  onAdd,
+}: {
+  isPro: boolean;
+  onAdd: (type: BlockType) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
+          <Plus className="w-4 h-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-48">
+        {basicBlockTypes.map(({ type, label, icon }) => (
+          <DropdownMenuItem key={type} onClick={() => onAdd(type)}>
+            <span className="w-6 flex items-center">{icon}</span>
+            <span>{label}</span>
+          </DropdownMenuItem>
+        ))}
+        {isPro ? (
+          <>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
+              <Crown className="w-3 h-3" /> Pro Blocks
+            </div>
+            {premiumBlockTypes.map(({ type, label, icon }) => (
+              <DropdownMenuItem key={type} onClick={() => onAdd(type)}>
+                <span className="w-6 flex items-center">{icon}</span>
+                <span>{label}</span>
+              </DropdownMenuItem>
+            ))}
+          </>
+        ) : (
+          <>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1 mb-1">
+                <Crown className="w-3 h-3" /> Pro Blocks
+              </div>
+              <p className="text-xs opacity-75">Upgrade to unlock callouts, code, tables, and more</p>
+            </div>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function BlockEditor({
   block,
   onUpdate,
@@ -140,7 +138,22 @@ export function BlockEditor({
 }: BlockEditorProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const config = blockTypeConfig[block.type];
-  
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: block.id });
+
+  const dragStyle: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+    position: 'relative',
+  };
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -165,310 +178,147 @@ export function BlockEditor({
   };
 
   const handleAddBlock = (type: BlockType) => {
-    if (isPremiumBlock(type) && !isPro) {
-      // Could show upgrade modal here
-      return;
-    }
+    if (isPremiumBlock(type) && !isPro) return;
     onAddBlock(type);
   };
 
-  // Divider block
+  // Drag handle button — attaches sortable listeners
+  const GripHandle = () => (
+    <button
+      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab active:cursor-grabbing touch-none"
+      {...attributes}
+      {...listeners}
+    >
+      <GripVertical className="w-4 h-4" />
+    </button>
+  );
+
+  const DeleteButton = ({ className = "absolute -right-8 top-1" }: { className?: string }) => (
+    <button
+      onClick={onDelete}
+      className={cn(
+        "p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle",
+        className
+      )}
+    >
+      <Trash2 className="w-3.5 h-3.5" />
+    </button>
+  );
+
+  // ── DIVIDER ────────────────────────────────────────────────────────────────
   if (block.type === 'divider') {
     return (
-      <div className="group relative flex items-center py-2">
+      <div ref={setNodeRef} style={dragStyle} className="group relative flex items-center py-2">
         <div className="absolute -left-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-gentle">
-          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
-            <GripVertical className="w-4 h-4" />
-          </button>
+          <GripHandle />
         </div>
         <hr className="flex-1 border-border" />
-        <button
-          onClick={onDelete}
-          className="absolute -right-8 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <DeleteButton className="absolute -right-8 top-1/2 -translate-y-1/2" />
       </div>
     );
   }
 
-  // Callout block
+  // ── CALLOUT ────────────────────────────────────────────────────────────────
   if (block.type === 'callout') {
     const calloutType = block.calloutType || 'info';
     return (
-      <div className="group relative py-1">
+      <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
         <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
-                <Plus className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              {basicBlockTypes.map(({ type, label, icon }) => (
-                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                  <span className="w-6">{icon}</span>
-                  <span>{label}</span>
-                </DropdownMenuItem>
-              ))}
-              {isPro && (
-                <>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
-                    <Crown className="w-3 h-3" /> Pro Blocks
-                  </div>
-                  {premiumBlockTypes.map(({ type, label, icon }) => (
-                    <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                      <span className="w-6">{icon}</span>
-                      <span>{label}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
-            <GripVertical className="w-4 h-4" />
-          </button>
+          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+          <GripHandle />
         </div>
-
-        <div className={cn(
-          "flex items-start gap-3 p-3 rounded-lg border",
-          calloutStyles[calloutType]
-        )}>
+        <div className={cn('flex items-start gap-3 p-3 rounded-lg border', calloutStyles[calloutType])}>
           <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
           <textarea
             ref={inputRef}
             value={block.content}
-            onChange={(e) => {
-              onUpdate({ content: e.target.value });
-              adjustHeight(e.target);
-            }}
+            onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
             onKeyDown={handleKeyDown}
             onFocus={onFocus}
             placeholder={config.placeholder}
             rows={1}
-            className={cn(
-              "flex-1 bg-transparent border-none outline-none resize-none overflow-hidden",
-              "placeholder:text-current placeholder:opacity-50",
-              config.className
-            )}
+            className={cn('flex-1 bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-current placeholder:opacity-50', config.className)}
           />
         </div>
-
-        <button
-          onClick={onDelete}
-          className="absolute -right-8 top-1 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <DeleteButton />
       </div>
     );
   }
 
-  // Quote block
+  // ── QUOTE ──────────────────────────────────────────────────────────────────
   if (block.type === 'quote') {
     return (
-      <div className="group relative py-1">
+      <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
         <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
-                <Plus className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              {basicBlockTypes.map(({ type, label, icon }) => (
-                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                  <span className="w-6">{icon}</span>
-                  <span>{label}</span>
-                </DropdownMenuItem>
-              ))}
-              {isPro && (
-                <>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
-                    <Crown className="w-3 h-3" /> Pro Blocks
-                  </div>
-                  {premiumBlockTypes.map(({ type, label, icon }) => (
-                    <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                      <span className="w-6">{icon}</span>
-                      <span>{label}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
-            <GripVertical className="w-4 h-4" />
-          </button>
+          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+          <GripHandle />
         </div>
-
         <div className="flex items-start border-l-4 border-muted-foreground/30 pl-4">
           <textarea
             ref={inputRef}
             value={block.content}
-            onChange={(e) => {
-              onUpdate({ content: e.target.value });
-              adjustHeight(e.target);
-            }}
+            onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
             onKeyDown={handleKeyDown}
             onFocus={onFocus}
             placeholder={config.placeholder}
             rows={1}
-            className={cn(
-              "flex-1 bg-transparent border-none outline-none resize-none overflow-hidden",
-              "placeholder:text-placeholder",
-              config.className
-            )}
+            className={cn('flex-1 bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-placeholder', config.className)}
           />
         </div>
-
-        <button
-          onClick={onDelete}
-          className="absolute -right-8 top-1 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <DeleteButton />
       </div>
     );
   }
 
-  // Code block
+  // ── CODE ───────────────────────────────────────────────────────────────────
   if (block.type === 'code') {
     return (
-      <div className="group relative py-1">
+      <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
         <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
-                <Plus className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              {basicBlockTypes.map(({ type, label, icon }) => (
-                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                  <span className="w-6">{icon}</span>
-                  <span>{label}</span>
-                </DropdownMenuItem>
-              ))}
-              {isPro && (
-                <>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
-                    <Crown className="w-3 h-3" /> Pro Blocks
-                  </div>
-                  {premiumBlockTypes.map(({ type, label, icon }) => (
-                    <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                      <span className="w-6">{icon}</span>
-                      <span>{label}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
-            <GripVertical className="w-4 h-4" />
-          </button>
+          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+          <GripHandle />
         </div>
-
         <div className="rounded-lg bg-muted/50 border border-border p-4 overflow-x-auto">
           <textarea
             ref={inputRef}
             value={block.content}
-            onChange={(e) => {
-              onUpdate({ content: e.target.value });
-              adjustHeight(e.target);
-            }}
+            onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
             onFocus={onFocus}
             placeholder={config.placeholder}
             rows={3}
-            className={cn(
-              "w-full bg-transparent border-none outline-none resize-none",
-              "placeholder:text-placeholder",
-              config.className
-            )}
+            className={cn('w-full bg-transparent border-none outline-none resize-none placeholder:text-placeholder', config.className)}
           />
         </div>
-
-        <button
-          onClick={onDelete}
-          className="absolute -right-8 top-1 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <DeleteButton />
       </div>
     );
   }
 
-  // Toggle block
+  // ── TOGGLE ─────────────────────────────────────────────────────────────────
   if (block.type === 'toggle') {
     return (
-      <div className="group relative py-1">
+      <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
         <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
-                <Plus className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              {basicBlockTypes.map(({ type, label, icon }) => (
-                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                  <span className="w-6">{icon}</span>
-                  <span>{label}</span>
-                </DropdownMenuItem>
-              ))}
-              {isPro && (
-                <>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
-                    <Crown className="w-3 h-3" /> Pro Blocks
-                  </div>
-                  {premiumBlockTypes.map(({ type, label, icon }) => (
-                    <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                      <span className="w-6">{icon}</span>
-                      <span>{label}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
-            <GripVertical className="w-4 h-4" />
-          </button>
+          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+          <GripHandle />
         </div>
-
         <div className="flex items-start gap-2">
           <button
             onClick={() => onUpdate({ collapsed: !block.collapsed })}
             className="p-0.5 mt-0.5 rounded hover:bg-hover-overlay transition-gentle"
           >
-            <ChevronRight className={cn(
-              "w-4 h-4 transition-transform",
-              !block.collapsed && "rotate-90"
-            )} />
+            <ChevronRight className={cn('w-4 h-4 transition-transform', !block.collapsed && 'rotate-90')} />
           </button>
           <div className="flex-1">
             <textarea
               ref={inputRef}
               value={block.content}
-              onChange={(e) => {
-                onUpdate({ content: e.target.value });
-                adjustHeight(e.target);
-              }}
+              onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
               onKeyDown={handleKeyDown}
               onFocus={onFocus}
               placeholder={config.placeholder}
               rows={1}
-              className={cn(
-                "w-full bg-transparent border-none outline-none resize-none overflow-hidden",
-                "placeholder:text-placeholder",
-                config.className
-              )}
+              className={cn('w-full bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-placeholder', config.className)}
             />
             {!block.collapsed && (
               <div className="pl-2 mt-2 border-l-2 border-border">
@@ -477,153 +327,85 @@ export function BlockEditor({
             )}
           </div>
         </div>
-
-        <button
-          onClick={onDelete}
-          className="absolute -right-8 top-1 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <DeleteButton />
       </div>
     );
   }
 
-  // Image block
+  // ── IMAGE ──────────────────────────────────────────────────────────────────
   if (block.type === 'image') {
     return (
-      <ImageBlock
-        block={block}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />
+      <div ref={setNodeRef} style={dragStyle}>
+        <ImageBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
+      </div>
     );
   }
 
-  // Embed block
+  // ── EMBED ──────────────────────────────────────────────────────────────────
   if (block.type === 'embed') {
     return (
-      <EmbedBlock
-        block={block}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />
+      <div ref={setNodeRef} style={dragStyle}>
+        <EmbedBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
+      </div>
     );
   }
 
-  // Bullet list block
+  // ── BULLET LIST ────────────────────────────────────────────────────────────
   if (block.type === 'bullet') {
     return (
-      <div className="group relative flex items-start py-0.5 gap-2">
+      <div ref={setNodeRef} style={dragStyle} className="group relative flex items-start py-0.5 gap-2">
         <div className="absolute -left-10 top-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
-                <Plus className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              {basicBlockTypes.map(({ type, label, icon }) => (
-                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                  <span className="w-6 flex items-center">{icon}</span>
-                  <span>{label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
-            <GripVertical className="w-4 h-4" />
-          </button>
+          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+          <GripHandle />
         </div>
         <span className="mt-1 w-4 text-muted-foreground flex-shrink-0 text-center select-none leading-relaxed">•</span>
         <textarea
           ref={inputRef}
           value={block.content}
-          onChange={(e) => {
-            onUpdate({ content: e.target.value });
-            adjustHeight(e.target);
-          }}
+          onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
           onKeyDown={handleKeyDown}
           onFocus={onFocus}
           placeholder={config.placeholder}
           rows={1}
-          className={cn(
-            "flex-1 bg-transparent border-none outline-none resize-none overflow-hidden",
-            "placeholder:text-placeholder",
-            config.className
-          )}
+          className={cn('flex-1 bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-placeholder', config.className)}
           style={{ minHeight: '1.5em' }}
         />
-        <button
-          onClick={onDelete}
-          className="absolute -right-8 top-0.5 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <DeleteButton className="absolute -right-8 top-0.5" />
       </div>
     );
   }
 
-  // Numbered list block
+  // ── NUMBERED LIST ──────────────────────────────────────────────────────────
   if (block.type === 'numbered') {
     return (
-      <div className="group relative flex items-start py-0.5 gap-2">
+      <div ref={setNodeRef} style={dragStyle} className="group relative flex items-start py-0.5 gap-2">
         <div className="absolute -left-10 top-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
-                <Plus className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              {basicBlockTypes.map(({ type, label, icon }) => (
-                <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                  <span className="w-6 flex items-center">{icon}</span>
-                  <span>{label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
-            <GripVertical className="w-4 h-4" />
-          </button>
+          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+          <GripHandle />
         </div>
         <span className="mt-0.5 w-5 text-muted-foreground flex-shrink-0 text-sm select-none text-right leading-relaxed">1.</span>
         <textarea
           ref={inputRef}
           value={block.content}
-          onChange={(e) => {
-            onUpdate({ content: e.target.value });
-            adjustHeight(e.target);
-          }}
+          onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
           onKeyDown={handleKeyDown}
           onFocus={onFocus}
           placeholder={config.placeholder}
           rows={1}
-          className={cn(
-            "flex-1 bg-transparent border-none outline-none resize-none overflow-hidden",
-            "placeholder:text-placeholder",
-            config.className
-          )}
+          className={cn('flex-1 bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-placeholder', config.className)}
           style={{ minHeight: '1.5em' }}
         />
-        <button
-          onClick={onDelete}
-          className="absolute -right-8 top-0.5 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <DeleteButton className="absolute -right-8 top-0.5" />
       </div>
     );
   }
 
-  // Math block (Pro)
+  // ── MATH ───────────────────────────────────────────────────────────────────
   if (block.type === 'math') {
     return (
-      <div className="group relative py-1">
+      <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
         <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
-            <GripVertical className="w-4 h-4" />
-          </button>
+          <GripHandle />
         </div>
         <div className="rounded-lg bg-muted/30 border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -633,18 +415,11 @@ export function BlockEditor({
           <textarea
             ref={inputRef}
             value={block.content}
-            onChange={(e) => {
-              onUpdate({ content: e.target.value });
-              adjustHeight(e.target);
-            }}
+            onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
             onFocus={onFocus}
             placeholder={config.placeholder}
             rows={2}
-            className={cn(
-              "w-full bg-transparent border-none outline-none resize-none",
-              "placeholder:text-placeholder",
-              config.className
-            )}
+            className={cn('w-full bg-transparent border-none outline-none resize-none placeholder:text-placeholder', config.className)}
           />
           {block.content && (
             <div className="mt-2 pt-2 border-t border-border">
@@ -652,64 +427,18 @@ export function BlockEditor({
             </div>
           )}
         </div>
-        <button
-          onClick={onDelete}
-          className="absolute -right-8 top-1 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <DeleteButton />
       </div>
     );
   }
 
-  // Default block (text, headings, checklist)
+  // ── DEFAULT (text, headings, checklist) ────────────────────────────────────
   return (
-    <div className="group relative flex items-start py-0.5">
+    <div ref={setNodeRef} style={dragStyle} className="group relative flex items-start py-0.5">
       {/* Left controls */}
       <div className="absolute -left-10 top-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay">
-              <Plus className="w-4 h-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            {basicBlockTypes.map(({ type, label, icon }) => (
-              <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                <span className="w-6">{icon}</span>
-                <span>{label}</span>
-              </DropdownMenuItem>
-            ))}
-            {isPro && (
-              <>
-                <DropdownMenuSeparator />
-                <div className="px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
-                  <Crown className="w-3 h-3" /> Pro Blocks
-                </div>
-                {premiumBlockTypes.map(({ type, label, icon }) => (
-                  <DropdownMenuItem key={type} onClick={() => handleAddBlock(type)}>
-                    <span className="w-6">{icon}</span>
-                    <span>{label}</span>
-                  </DropdownMenuItem>
-                ))}
-              </>
-            )}
-            {!isPro && (
-              <>
-                <DropdownMenuSeparator />
-                <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1 mb-1">
-                    <Crown className="w-3 h-3" /> Pro Blocks
-                  </div>
-                  <p className="text-xs opacity-75">Upgrade to unlock callouts, code, tables, and more</p>
-                </div>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab">
-          <GripVertical className="w-4 h-4" />
-        </button>
+        <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+        <GripHandle />
       </div>
 
       {/* Checkbox for checklist */}
@@ -717,10 +446,10 @@ export function BlockEditor({
         <button
           onClick={() => onUpdate({ checked: !block.checked })}
           className={cn(
-            "w-4 h-4 mt-1 mr-2 rounded border flex items-center justify-center transition-gentle flex-shrink-0",
+            'w-4 h-4 mt-1 mr-2 rounded border flex items-center justify-center transition-gentle flex-shrink-0',
             block.checked
-              ? "bg-accent border-accent text-accent-foreground"
-              : "border-muted-foreground/40 hover:border-accent"
+              ? 'bg-accent border-accent text-accent-foreground'
+              : 'border-muted-foreground/40 hover:border-accent'
           )}
         >
           {block.checked && <Check className="w-3 h-3" />}
@@ -731,30 +460,21 @@ export function BlockEditor({
       <textarea
         ref={inputRef}
         value={block.content}
-        onChange={(e) => {
-          onUpdate({ content: e.target.value });
-          adjustHeight(e.target);
-        }}
+        onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
         onKeyDown={handleKeyDown}
         onFocus={onFocus}
         placeholder={config.placeholder}
         rows={1}
         className={cn(
-          "flex-1 bg-transparent border-none outline-none resize-none overflow-hidden",
-          "placeholder:text-placeholder",
+          'flex-1 bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-placeholder',
           config.className,
-          block.type === 'checklist' && block.checked && "line-through text-muted-foreground"
+          block.type === 'checklist' && block.checked && 'line-through text-muted-foreground'
         )}
         style={{ minHeight: '1.5em' }}
       />
 
       {/* Delete button */}
-      <button
-        onClick={onDelete}
-        className="absolute -right-8 top-0.5 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-gentle"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+      <DeleteButton className="absolute -right-8 top-0.5" />
     </div>
   );
 }

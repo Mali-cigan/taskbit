@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Page, BlockType } from '@/types/workspace';
+import { useState, useCallback } from 'react';
+import { Page, Block, BlockType } from '@/types/workspace';
 import { BlockEditor } from './BlockEditor';
 import { Plus, Menu } from 'lucide-react';
 import {
@@ -13,6 +13,24 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 
 interface PageEditorProps {
   page: Page;
@@ -21,8 +39,11 @@ interface PageEditorProps {
   onAddBlock: (type: BlockType, afterBlockId?: string) => void;
   onUpdateBlock: (blockId: string, updates: Partial<Page['blocks'][0]>) => void;
   onDeleteBlock: (blockId: string) => void;
+  onReorderBlocks?: (pageId: string, reorderedBlocks: Block[]) => void;
+  pageId: string;
   onToggleSidebar: () => void;
   isSidebarCollapsed: boolean;
+  isPro?: boolean;
 }
 
 const blockTypes: { type: BlockType; label: string; icon: string }[] = [
@@ -30,6 +51,8 @@ const blockTypes: { type: BlockType; label: string; icon: string }[] = [
   { type: 'heading1', label: 'Heading 1', icon: '𝗛' },
   { type: 'heading2', label: 'Heading 2', icon: '𝗵' },
   { type: 'heading3', label: 'Heading 3', icon: 'h' },
+  { type: 'bullet', label: 'Bullet List', icon: '•' },
+  { type: 'numbered', label: 'Numbered List', icon: '1.' },
   { type: 'checklist', label: 'Checklist', icon: '☑️' },
   { type: 'divider', label: 'Divider', icon: '—' },
 ];
@@ -43,10 +66,47 @@ export function PageEditor({
   onAddBlock,
   onUpdateBlock,
   onDeleteBlock,
+  onReorderBlocks,
+  pageId,
   onToggleSidebar,
   isSidebarCollapsed,
+  isPro = false,
 }: PageEditorProps) {
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        // Require a small drag distance before activating — prevents accidental drags when clicking
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  }, []);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = page.blocks.findIndex((b) => b.id === active.id);
+    const newIndex = page.blocks.findIndex((b) => b.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(page.blocks, oldIndex, newIndex);
+    onReorderBlocks?.(pageId, reordered);
+  }, [page.blocks, onReorderBlocks, pageId]);
+
+  const activeBlock = activeId ? page.blocks.find((b) => b.id === activeId) : null;
 
   return (
     <main className="flex-1 h-screen overflow-y-auto bg-page-bg">
@@ -99,19 +159,42 @@ export function PageEditor({
           />
         </div>
 
-        {/* Blocks */}
+        {/* Blocks with Drag-and-Drop */}
         <div className="space-y-1 pl-10">
-          {page.blocks.map((block, index) => (
-            <BlockEditor
-              key={block.id}
-              block={block}
-              onUpdate={(updates) => onUpdateBlock(block.id, updates)}
-              onDelete={() => onDeleteBlock(block.id)}
-              onAddBlock={(type) => onAddBlock(type, block.id)}
-              onFocus={() => setFocusedBlockId(block.id)}
-              autoFocus={index === page.blocks.length - 1 && block.content === ''}
-            />
-          ))}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          >
+            <SortableContext
+              items={page.blocks.map((b) => b.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {page.blocks.map((block, index) => (
+                <BlockEditor
+                  key={block.id}
+                  block={block}
+                  onUpdate={(updates) => onUpdateBlock(block.id, updates)}
+                  onDelete={() => onDeleteBlock(block.id)}
+                  onAddBlock={(type) => onAddBlock(type, block.id)}
+                  onFocus={() => setFocusedBlockId(block.id)}
+                  autoFocus={index === page.blocks.length - 1 && block.content === ''}
+                  isPro={isPro}
+                />
+              ))}
+            </SortableContext>
+
+            {/* Drag overlay — ghost of the dragged block */}
+            <DragOverlay>
+              {activeBlock ? (
+                <div className="opacity-80 shadow-lg rounded-md bg-background border border-border px-3 py-1.5 text-sm text-foreground cursor-grabbing">
+                  {activeBlock.content || `[${activeBlock.type}]`}
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         </div>
 
         {/* Add Block Button */}
