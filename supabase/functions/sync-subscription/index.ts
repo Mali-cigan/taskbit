@@ -15,7 +15,6 @@ type SyncRequest = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -46,7 +45,6 @@ serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Validate user via anon client
     const authClient = createClient(supabaseUrl, supabaseAnonKey);
     const { data: userData, error: userError } = await authClient.auth.getUser(token);
 
@@ -82,7 +80,7 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    let plan: "free" | "pro" = "free";
+    let plan: "free" | "pro" | "team" = "free";
     let status: string = "inactive";
     let stripeSubscriptionId: string | null = null;
     let currentPeriodEndIso: string | null = null;
@@ -99,8 +97,18 @@ serve(async (req) => {
 
       const isActive = sub.status === "active" || sub.status === "trialing";
 
-      if (hasProItem && isActive) {
-        plan = "pro";
+      // Check if this is a team subscription via metadata
+      const isTeamSub = sub.metadata?.owner_id !== undefined || 
+                        (sub as any).metadata?.seat_count !== undefined;
+
+      if (isActive) {
+        if (isTeamSub) {
+          plan = "team";
+        } else if (hasProItem) {
+          plan = "pro";
+        } else {
+          plan = "free";
+        }
         status = sub.status;
       } else {
         plan = "free";
@@ -111,10 +119,110 @@ serve(async (req) => {
       currentPeriodEndIso = sub.current_period_end
         ? new Date(sub.current_period_end * 1000).toISOString()
         : null;
+
+      // If team subscription, also upsert team_subscriptions table
+      if (isTeamSub && isActive && sub.metadata?.owner_id) {
+        const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
+        
+        // Find or create workspace for the owner
+        const ownerId = sub.metadata.owner_id;
+        const workspaceName = sub.metadata.workspace_name || "Team Workspace";
+        const seatCount = parseInt(sub.metadata.seat_count || "2", 10);
+        
+        let workspaceId: string | null = null;
+        
+        // Check if a workspace already exists for this subscription
+        const { data: existingTeamSub } = await admin
+          .from("team_subscriptions")
+          .select("workspace_id")
+          .eq("stripe_subscription_id", sub.id)
+          .maybeSingle();
+        
+        if (existingTeamSub?.workspace_id) {
+          workspaceId = existingTeamSub.workspace_id;
+        } else {
+          // Check if owner already has a workspace
+          const { data: existingWorkspace } = await admin
+            .from("workspaces")
+            .select("id")
+            .eq("owner_id", ownerId)
+            .maybeSingle();
+          
+          if (existingWorkspace) {
+            workspaceId = existingWorkspace.id;
+            // Update workspace name
+            await admin
+              .from("workspaces")
+              .update({ name: workspaceName })
+              .eq("id", workspaceId);
+          } else {
+            // Create new workspace
+            const { data: newWorkspace, error: wsError } = await admin
+              .from("workspaces")
+              .insert({ owner_id: ownerId, name: workspaceName })
+              .select("id")
+              .single();
+            
+            if (!wsError && newWorkspace) {
+              workspaceId = newWorkspace.id;
+            }
+          }
+        }
+        
+        if (workspaceId) {
+          // Upsert team_subscriptions
+          await admin
+            .from("team_subscriptions")
+            .upsert(
+              {
+                workspace_id: workspaceId,
+                owner_id: ownerId,
+                seat_count: seatCount,
+                plan: "team",
+                status: sub.status,
+                stripe_customer_id: customerId,
+                stripe_subscription_id: sub.id,
+                current_period_end: currentPeriodEndIso,
+              },
+              { onConflict: "workspace_id" }
+            );
+          
+          // Add team members
+          if (sub.metadata.team_emails) {
+            try {
+              const teamEmails: string[] = JSON.parse(sub.metadata.team_emails);
+              for (const memberEmail of teamEmails) {
+                if (!memberEmail?.trim()) continue;
+                // Check if already exists
+                const { data: existingMember } = await admin
+                  .from("workspace_members")
+                  .select("id")
+                  .eq("workspace_id", workspaceId)
+                  .eq("email", memberEmail)
+                  .maybeSingle();
+                
+                if (!existingMember) {
+                  await admin.from("workspace_members").insert({
+                    workspace_id: workspaceId,
+                    user_id: ownerId, // placeholder until they join
+                    email: memberEmail,
+                    role: "member",
+                    status: "pending",
+                  });
+                }
+              }
+            } catch (e) {
+              console.error("Error parsing team_emails metadata:", e);
+            }
+          }
+          
+          // Also update the user's personal subscription to team
+          plan = "team";
+        }
+      }
     };
 
     if (body.sessionId) {
-      // If we have a checkout session id, use it to find the exact subscription.
       const session = await stripe.checkout.sessions.retrieve(body.sessionId, {
         expand: ["subscription"],
       });
@@ -129,7 +237,7 @@ serve(async (req) => {
       }
     }
 
-    // Fallback: find the latest active/trialing subscription for the customer
+    // Fallback: find the latest active/trialing subscription
     if (!stripeSubscriptionId) {
       const subs = await stripe.subscriptions.list({
         customer: customerId,
@@ -137,13 +245,15 @@ serve(async (req) => {
         limit: 10,
       });
 
-      const preferred = subs.data.find((s: Stripe.Subscription) => s.status === "active" || s.status === "trialing") ?? subs.data[0];
+      const preferred = subs.data.find(
+        (s: Stripe.Subscription) => s.status === "active" || s.status === "trialing"
+      ) ?? subs.data[0];
       if (preferred) {
         await deriveFromSubscription(preferred.id);
       }
     }
 
-    // Upsert subscription row (service role bypasses RLS; clients cannot write this table)
+    // Upsert user_subscriptions (service role bypasses RLS)
     const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     const { error: upsertError } = await admin
