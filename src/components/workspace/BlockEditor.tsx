@@ -5,6 +5,7 @@ import { Block, BlockType, isPremiumBlock } from '@/types/workspace';
 import { GripVertical, Plus, Trash2, Check, AlertCircle, Quote, Code, Table, ChevronRight, Image, Link, Layout, Database, Crown, List, ListOrdered, Sigma } from 'lucide-react';
 import { ImageBlock } from './ImageBlock';
 import { EmbedBlock } from './EmbedBlock';
+import { AIWriteButton } from './AIWriteButton';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -436,7 +437,8 @@ export function BlockEditor({
   return (
     <div ref={setNodeRef} style={dragStyle} className="group relative flex items-start py-0.5">
       {/* Left controls */}
-      <div className="absolute -left-10 top-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+      <div className="absolute -left-14 top-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+        <AIWriteButton block={block} onUpdate={onUpdate} />
         <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
         <GripHandle />
       </div>
