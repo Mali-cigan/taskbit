@@ -160,7 +160,7 @@ export function PageEditor({
         </div>
 
         {/* Blocks with Drag-and-Drop */}
-        <div className="space-y-1 pl-10">
+        <div className="space-y-1 pl-14">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -198,7 +198,7 @@ export function PageEditor({
         </div>
 
         {/* Add Block Button */}
-        <div className="mt-4 pl-10">
+        <div className="mt-4 pl-14">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-hover-overlay transition-gentle text-sm">

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Sidebar } from '@/components/workspace/Sidebar';
+import { AIChatWidget } from '@/components/workspace/AIChatWidget';
 import { PageEditor } from '@/components/workspace/PageEditor';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { useAuth } from '@/hooks/useAuth';
@@ -170,6 +171,7 @@ const Index = () => {
           isSidebarCollapsed={sidebarCollapsed}
         />
       </div>
+      <AIChatWidget />
     </div>
   );
 };
