@@ -1,4 +1,4 @@
-import { useRef, useEffect, KeyboardEvent } from 'react';
+import { useRef, useState, useEffect, KeyboardEvent } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Block, BlockType, isPremiumBlock } from '@/types/workspace';
@@ -6,6 +6,8 @@ import { GripVertical, Plus, Trash2, Check, AlertCircle, Quote, Code, Table, Che
 import { ImageBlock } from './ImageBlock';
 import { EmbedBlock } from './EmbedBlock';
 import { AIWriteButton } from './AIWriteButton';
+import { RichTextInput } from './RichTextInput';
+import { SlashCommandMenu } from './SlashCommandMenu';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -29,7 +31,7 @@ const blockTypeConfig: Record<BlockType, { placeholder: string; className: strin
   heading1: { placeholder: 'Heading 1', className: 'text-2xl font-semibold tracking-tight' },
   heading2: { placeholder: 'Heading 2', className: 'text-xl font-semibold tracking-tight' },
   heading3: { placeholder: 'Heading 3', className: 'text-lg font-medium' },
-  text: { placeholder: 'Type something...', className: 'text-base leading-relaxed' },
+  text: { placeholder: 'Type something, or press / for commands...', className: 'text-base leading-relaxed' },
   checklist: { placeholder: 'To-do', className: 'text-base leading-relaxed' },
   divider: { placeholder: '', className: '' },
   bullet: { placeholder: 'List item', className: 'text-base leading-relaxed' },
@@ -77,14 +79,9 @@ const calloutStyles = {
   error: 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400',
 };
 
-// Shared block menu shown in the left gutter
-function BlockMenu({
-  isPro,
-  onAdd,
-}: {
-  isPro: boolean;
-  onAdd: (type: BlockType) => void;
-}) {
+// ── Shared sub-components ──────────────────────────────────────────────────────
+
+function BlockMenu({ isPro, onAdd }: { isPro: boolean; onAdd: (type: BlockType) => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -92,7 +89,7 @@ function BlockMenu({
           <Plus className="w-4 h-4" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
+      <DropdownMenuContent align="start" className="w-48 bg-popover z-50">
         {basicBlockTypes.map(({ type, label, icon }) => (
           <DropdownMenuItem key={type} onClick={() => onAdd(type)}>
             <span className="w-6 flex items-center">{icon}</span>
@@ -128,6 +125,8 @@ function BlockMenu({
   );
 }
 
+// ── Main BlockEditor ───────────────────────────────────────────────────────────
+
 export function BlockEditor({
   block,
   onUpdate,
@@ -137,7 +136,8 @@ export function BlockEditor({
   autoFocus,
   isPro = false,
 }: BlockEditorProps) {
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [slashOpen, setSlashOpen] = useState(false);
   const config = blockTypeConfig[block.type];
 
   const {
@@ -157,12 +157,12 @@ export function BlockEditor({
   };
 
   useEffect(() => {
-    if (autoFocus && inputRef.current) {
-      inputRef.current.focus();
+    if (autoFocus && textareaRef.current) {
+      textareaRef.current.focus();
     }
   }, [autoFocus]);
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleTextareaKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onAddBlock('text');
@@ -183,7 +183,41 @@ export function BlockEditor({
     onAddBlock(type);
   };
 
-  // Drag handle button — attaches sortable listeners
+  // Handle slash command for rich text blocks
+  const handleRichTextKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      onAddBlock('text');
+    }
+    if (e.key === 'Backspace') {
+      const text = block.content.replace(/<[^>]*>/g, '').trim();
+      if (text === '' || text === '/') {
+        onDelete();
+      }
+    }
+  };
+
+  const handleRichTextChange = (html: string) => {
+    // Detect slash command: if content is exactly "/" show slash menu
+    const plainText = html.replace(/<[^>]*>/g, '').trim();
+    if (plainText === '/') {
+      setSlashOpen(true);
+    } else {
+      setSlashOpen(false);
+    }
+    onUpdate({ content: html });
+  };
+
+  const handleSlashSelect = (type: BlockType) => {
+    setSlashOpen(false);
+    // Clear the "/" from the block content
+    onUpdate({ content: '' });
+    if (type === block.type) return; // Already this type, just clear
+    // Convert block type or add new block
+    if (type !== 'text') {
+      onAddBlock(type);
+    }
+  };
+
   const GripHandle = () => (
     <button
       className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-hover-overlay cursor-grab active:cursor-grabbing touch-none"
@@ -206,7 +240,10 @@ export function BlockEditor({
     </button>
   );
 
-  // ── DIVIDER ────────────────────────────────────────────────────────────────
+  // ── Rich text eligible blocks ──
+  const isRichText = ['text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'checklist', 'callout', 'quote'].includes(block.type);
+
+  // ── DIVIDER ──
   if (block.type === 'divider') {
     return (
       <div ref={setNodeRef} style={dragStyle} className="group relative flex items-center py-2">
@@ -219,59 +256,7 @@ export function BlockEditor({
     );
   }
 
-  // ── CALLOUT ────────────────────────────────────────────────────────────────
-  if (block.type === 'callout') {
-    const calloutType = block.calloutType || 'info';
-    return (
-      <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
-        <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
-          <GripHandle />
-        </div>
-        <div className={cn('flex items-start gap-3 p-3 rounded-lg border', calloutStyles[calloutType])}>
-          <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-          <textarea
-            ref={inputRef}
-            value={block.content}
-            onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
-            onKeyDown={handleKeyDown}
-            onFocus={onFocus}
-            placeholder={config.placeholder}
-            rows={1}
-            className={cn('flex-1 bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-current placeholder:opacity-50', config.className)}
-          />
-        </div>
-        <DeleteButton />
-      </div>
-    );
-  }
-
-  // ── QUOTE ──────────────────────────────────────────────────────────────────
-  if (block.type === 'quote') {
-    return (
-      <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
-        <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
-          <GripHandle />
-        </div>
-        <div className="flex items-start border-l-4 border-muted-foreground/30 pl-4">
-          <textarea
-            ref={inputRef}
-            value={block.content}
-            onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
-            onKeyDown={handleKeyDown}
-            onFocus={onFocus}
-            placeholder={config.placeholder}
-            rows={1}
-            className={cn('flex-1 bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-placeholder', config.className)}
-          />
-        </div>
-        <DeleteButton />
-      </div>
-    );
-  }
-
-  // ── CODE ───────────────────────────────────────────────────────────────────
+  // ── CODE (keep textarea for code) ──
   if (block.type === 'code') {
     return (
       <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
@@ -281,7 +266,7 @@ export function BlockEditor({
         </div>
         <div className="rounded-lg bg-muted/50 border border-border p-4 overflow-x-auto">
           <textarea
-            ref={inputRef}
+            ref={textareaRef}
             value={block.content}
             onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
             onFocus={onFocus}
@@ -295,113 +280,7 @@ export function BlockEditor({
     );
   }
 
-  // ── TOGGLE ─────────────────────────────────────────────────────────────────
-  if (block.type === 'toggle') {
-    return (
-      <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
-        <div className="absolute -left-10 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
-          <GripHandle />
-        </div>
-        <div className="flex items-start gap-2">
-          <button
-            onClick={() => onUpdate({ collapsed: !block.collapsed })}
-            className="p-0.5 mt-0.5 rounded hover:bg-hover-overlay transition-gentle"
-          >
-            <ChevronRight className={cn('w-4 h-4 transition-transform', !block.collapsed && 'rotate-90')} />
-          </button>
-          <div className="flex-1">
-            <textarea
-              ref={inputRef}
-              value={block.content}
-              onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
-              onKeyDown={handleKeyDown}
-              onFocus={onFocus}
-              placeholder={config.placeholder}
-              rows={1}
-              className={cn('w-full bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-placeholder', config.className)}
-            />
-            {!block.collapsed && (
-              <div className="pl-2 mt-2 border-l-2 border-border">
-                <p className="text-sm text-muted-foreground">Toggle content goes here...</p>
-              </div>
-            )}
-          </div>
-        </div>
-        <DeleteButton />
-      </div>
-    );
-  }
-
-  // ── IMAGE ──────────────────────────────────────────────────────────────────
-  if (block.type === 'image') {
-    return (
-      <div ref={setNodeRef} style={dragStyle}>
-        <ImageBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
-      </div>
-    );
-  }
-
-  // ── EMBED ──────────────────────────────────────────────────────────────────
-  if (block.type === 'embed') {
-    return (
-      <div ref={setNodeRef} style={dragStyle}>
-        <EmbedBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
-      </div>
-    );
-  }
-
-  // ── BULLET LIST ────────────────────────────────────────────────────────────
-  if (block.type === 'bullet') {
-    return (
-      <div ref={setNodeRef} style={dragStyle} className="group relative flex items-start py-0.5 gap-2">
-        <div className="absolute -left-10 top-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
-          <GripHandle />
-        </div>
-        <span className="mt-1 w-4 text-muted-foreground flex-shrink-0 text-center select-none leading-relaxed">•</span>
-        <textarea
-          ref={inputRef}
-          value={block.content}
-          onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
-          onKeyDown={handleKeyDown}
-          onFocus={onFocus}
-          placeholder={config.placeholder}
-          rows={1}
-          className={cn('flex-1 bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-placeholder', config.className)}
-          style={{ minHeight: '1.5em' }}
-        />
-        <DeleteButton className="absolute -right-8 top-0.5" />
-      </div>
-    );
-  }
-
-  // ── NUMBERED LIST ──────────────────────────────────────────────────────────
-  if (block.type === 'numbered') {
-    return (
-      <div ref={setNodeRef} style={dragStyle} className="group relative flex items-start py-0.5 gap-2">
-        <div className="absolute -left-10 top-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
-          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
-          <GripHandle />
-        </div>
-        <span className="mt-0.5 w-5 text-muted-foreground flex-shrink-0 text-sm select-none text-right leading-relaxed">1.</span>
-        <textarea
-          ref={inputRef}
-          value={block.content}
-          onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
-          onKeyDown={handleKeyDown}
-          onFocus={onFocus}
-          placeholder={config.placeholder}
-          rows={1}
-          className={cn('flex-1 bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-placeholder', config.className)}
-          style={{ minHeight: '1.5em' }}
-        />
-        <DeleteButton className="absolute -right-8 top-0.5" />
-      </div>
-    );
-  }
-
-  // ── MATH ───────────────────────────────────────────────────────────────────
+  // ── MATH (keep textarea) ──
   if (block.type === 'math') {
     return (
       <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
@@ -414,7 +293,7 @@ export function BlockEditor({
             <span className="text-xs text-muted-foreground font-medium">Math (LaTeX)</span>
           </div>
           <textarea
-            ref={inputRef}
+            ref={textareaRef}
             value={block.content}
             onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
             onFocus={onFocus}
@@ -433,7 +312,165 @@ export function BlockEditor({
     );
   }
 
-  // ── DEFAULT (text, headings, checklist) ────────────────────────────────────
+  // ── TOGGLE ──
+  if (block.type === 'toggle') {
+    return (
+      <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
+        <div className="absolute -left-14 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <AIWriteButton block={block} onUpdate={onUpdate} />
+          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+          <GripHandle />
+        </div>
+        <div className="flex items-start gap-2">
+          <button
+            onClick={() => onUpdate({ collapsed: !block.collapsed })}
+            className="p-0.5 mt-0.5 rounded hover:bg-hover-overlay transition-gentle"
+          >
+            <ChevronRight className={cn('w-4 h-4 transition-transform', !block.collapsed && 'rotate-90')} />
+          </button>
+          <div className="flex-1">
+            <RichTextInput
+              value={block.content}
+              onChange={(html) => onUpdate({ content: html })}
+              onKeyDown={handleRichTextKeyDown}
+              onFocus={onFocus}
+              placeholder={config.placeholder}
+              className={config.className}
+              autoFocus={autoFocus}
+            />
+            {!block.collapsed && (
+              <div className="pl-2 mt-2 border-l-2 border-border">
+                <p className="text-sm text-muted-foreground">Toggle content goes here...</p>
+              </div>
+            )}
+          </div>
+        </div>
+        <DeleteButton />
+      </div>
+    );
+  }
+
+  // ── IMAGE ──
+  if (block.type === 'image') {
+    return (
+      <div ref={setNodeRef} style={dragStyle}>
+        <ImageBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
+      </div>
+    );
+  }
+
+  // ── EMBED ──
+  if (block.type === 'embed') {
+    return (
+      <div ref={setNodeRef} style={dragStyle}>
+        <EmbedBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
+      </div>
+    );
+  }
+
+  // ── CALLOUT ──
+  if (block.type === 'callout') {
+    const calloutType = block.calloutType || 'info';
+    return (
+      <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
+        <div className="absolute -left-14 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <AIWriteButton block={block} onUpdate={onUpdate} />
+          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+          <GripHandle />
+        </div>
+        <div className={cn('flex items-start gap-3 p-3 rounded-lg border', calloutStyles[calloutType])}>
+          <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+          <RichTextInput
+            value={block.content}
+            onChange={(html) => onUpdate({ content: html })}
+            onKeyDown={handleRichTextKeyDown}
+            onFocus={onFocus}
+            placeholder={config.placeholder}
+            className={cn(config.className, 'placeholder:text-current placeholder:opacity-50')}
+            autoFocus={autoFocus}
+          />
+        </div>
+        <DeleteButton />
+      </div>
+    );
+  }
+
+  // ── QUOTE ──
+  if (block.type === 'quote') {
+    return (
+      <div ref={setNodeRef} style={dragStyle} className="group relative py-1">
+        <div className="absolute -left-14 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <AIWriteButton block={block} onUpdate={onUpdate} />
+          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+          <GripHandle />
+        </div>
+        <div className="flex items-start border-l-4 border-muted-foreground/30 pl-4">
+          <RichTextInput
+            value={block.content}
+            onChange={(html) => onUpdate({ content: html })}
+            onKeyDown={handleRichTextKeyDown}
+            onFocus={onFocus}
+            placeholder={config.placeholder}
+            className={config.className}
+            autoFocus={autoFocus}
+          />
+        </div>
+        <DeleteButton />
+      </div>
+    );
+  }
+
+  // ── BULLET LIST ──
+  if (block.type === 'bullet') {
+    return (
+      <div ref={setNodeRef} style={dragStyle} className="group relative flex items-start py-0.5 gap-2">
+        <div className="absolute -left-14 top-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <AIWriteButton block={block} onUpdate={onUpdate} />
+          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+          <GripHandle />
+        </div>
+        <span className="mt-0.5 w-4 text-muted-foreground flex-shrink-0 text-center select-none leading-relaxed">•</span>
+        <RichTextInput
+          value={block.content}
+          onChange={handleRichTextChange}
+          onKeyDown={handleRichTextKeyDown}
+          onFocus={onFocus}
+          placeholder={config.placeholder}
+          className={config.className}
+          autoFocus={autoFocus}
+        />
+        <SlashCommandMenu isOpen={slashOpen} onClose={() => setSlashOpen(false)} onSelect={handleSlashSelect} isPro={isPro} />
+        <DeleteButton className="absolute -right-8 top-0.5" />
+      </div>
+    );
+  }
+
+  // ── NUMBERED LIST ──
+  if (block.type === 'numbered') {
+    return (
+      <div ref={setNodeRef} style={dragStyle} className="group relative flex items-start py-0.5 gap-2">
+        <div className="absolute -left-14 top-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-gentle">
+          <AIWriteButton block={block} onUpdate={onUpdate} />
+          <BlockMenu isPro={isPro} onAdd={handleAddBlock} />
+          <GripHandle />
+        </div>
+        <span className="mt-0.5 w-5 text-muted-foreground flex-shrink-0 text-sm select-none text-right leading-relaxed">1.</span>
+        <RichTextInput
+          value={block.content}
+          onChange={handleRichTextChange}
+          onKeyDown={handleRichTextKeyDown}
+          onFocus={onFocus}
+          placeholder={config.placeholder}
+          className={config.className}
+          autoFocus={autoFocus}
+        />
+        <SlashCommandMenu isOpen={slashOpen} onClose={() => setSlashOpen(false)} onSelect={handleSlashSelect} isPro={isPro} />
+        <DeleteButton className="absolute -right-8 top-0.5" />
+      </div>
+    );
+  }
+
+  // ── DEFAULT (text, headings, checklist) ──
   return (
     <div ref={setNodeRef} style={dragStyle} className="group relative flex items-start py-0.5">
       {/* Left controls */}
@@ -458,21 +495,27 @@ export function BlockEditor({
         </button>
       )}
 
-      {/* Content */}
-      <textarea
-        ref={inputRef}
+      {/* Content — RichTextInput with formatting toolbar */}
+      <RichTextInput
         value={block.content}
-        onChange={(e) => { onUpdate({ content: e.target.value }); adjustHeight(e.target); }}
-        onKeyDown={handleKeyDown}
+        onChange={handleRichTextChange}
+        onKeyDown={handleRichTextKeyDown}
         onFocus={onFocus}
         placeholder={config.placeholder}
-        rows={1}
         className={cn(
-          'flex-1 bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-placeholder',
           config.className,
           block.type === 'checklist' && block.checked && 'line-through text-muted-foreground'
         )}
+        autoFocus={autoFocus}
         style={{ minHeight: '1.5em' }}
+      />
+
+      {/* Slash command menu */}
+      <SlashCommandMenu
+        isOpen={slashOpen}
+        onClose={() => setSlashOpen(false)}
+        onSelect={handleSlashSelect}
+        isPro={isPro}
       />
 
       {/* Delete button */}
