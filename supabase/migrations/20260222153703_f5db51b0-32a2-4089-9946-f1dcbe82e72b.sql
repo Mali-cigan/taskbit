@@ -1,0 +1,1 @@
+ALTER TABLE public.workspaces ADD COLUMN IF NOT EXISTS auto_join_domain text DEFAULT NULL;
