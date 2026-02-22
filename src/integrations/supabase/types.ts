@@ -354,6 +354,7 @@ export type Database = {
       }
       workspaces: {
         Row: {
+          auto_join_domain: string | null
           created_at: string
           id: string
           name: string
@@ -361,6 +362,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_join_domain?: string | null
           created_at?: string
           id?: string
           name?: string
@@ -368,6 +370,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_join_domain?: string | null
           created_at?: string
           id?: string
           name?: string
