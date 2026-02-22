@@ -103,6 +103,27 @@ export type Database = {
         }
         Relationships: []
       }
+      oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pages: {
         Row: {
           created_at: string
@@ -381,7 +402,39 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      google_integrations_status: {
+        Row: {
+          calendar_enabled: boolean | null
+          created_at: string | null
+          drive_enabled: boolean | null
+          gmail_enabled: boolean | null
+          id: string | null
+          token_expires_at: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          calendar_enabled?: boolean | null
+          created_at?: string | null
+          drive_enabled?: boolean | null
+          gmail_enabled?: boolean | null
+          id?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          calendar_enabled?: boolean | null
+          created_at?: string | null
+          drive_enabled?: boolean | null
+          gmail_enabled?: boolean | null
+          id?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
