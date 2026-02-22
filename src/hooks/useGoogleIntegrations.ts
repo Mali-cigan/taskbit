@@ -49,14 +49,17 @@ export function useGoogleIntegrations() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('google_integrations')
-        .select('gmail_enabled, calendar_enabled, drive_enabled')
-        .eq('user_id', user.id)
-        .single();
+      // Call edge function to get integration status (tokens never exposed to client)
+      const { data, error } = await supabase.functions.invoke('google-auth', {
+        body: { action: 'status' },
+      });
 
-      if (!error && data) {
-        setIntegration(data);
+      if (!error && data?.connected) {
+        setIntegration({
+          gmail_enabled: data.gmail_enabled ?? false,
+          calendar_enabled: data.calendar_enabled ?? false,
+          drive_enabled: data.drive_enabled ?? false,
+        });
       }
       setLoading(false);
     }

@@ -108,26 +108,43 @@ serve(async (req) => {
     let action = "list";
     let requestBody: { action?: string; folderId?: string; q?: string; pageToken?: string } = {};
     
-    // Try to get action from body first
     try {
       const clonedReq = req.clone();
       requestBody = await clonedReq.json();
       action = requestBody.action || "list";
     } catch {
-      // If body parsing fails, check URL params
       const url = new URL(req.url);
       action = url.searchParams.get("action") || "list";
     }
 
+    // Validate folderId to prevent API query injection
+    function validateFolderId(id: string): string {
+      if (id === "root") return "root";
+      // Google Drive file IDs are alphanumeric with hyphens/underscores, typically 25+ chars
+      const idRegex = /^[a-zA-Z0-9_-]{10,}$/;
+      if (!idRegex.test(id)) {
+        throw new Error("Invalid folder ID format");
+      }
+      return id;
+    }
+
     if (action === "list") {
-      const folderId = requestBody.folderId || "root";
+      const folderId = validateFolderId(requestBody.folderId || "root");
       const pageToken = requestBody.pageToken;
 
-      let apiUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&fields=files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink),nextPageToken&pageSize=20&orderBy=modifiedTime+desc`;
+      // Use URLSearchParams for safe query construction
+      const params = new URLSearchParams({
+        q: `'${folderId}' in parents`,
+        fields: "files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink),nextPageToken",
+        pageSize: "20",
+        orderBy: "modifiedTime desc",
+      });
       
       if (pageToken) {
-        apiUrl += `&pageToken=${pageToken}`;
+        params.set("pageToken", pageToken);
       }
+
+      const apiUrl = `https://www.googleapis.com/drive/v3/files?${params}`;
 
       const response = await fetch(apiUrl, {
         headers: { Authorization: `Bearer ${accessToken}` },
