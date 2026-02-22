@@ -65,6 +65,25 @@ export function RichTextInput({
   }, [onChange]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const mod = e.metaKey || e.ctrlKey;
+
+    // Rich text shortcuts
+    if (mod && e.key === 'b') {
+      e.preventDefault();
+      document.execCommand('bold');
+      return;
+    }
+    if (mod && e.key === 'i') {
+      e.preventDefault();
+      document.execCommand('italic');
+      return;
+    }
+    if (mod && e.key === 'u') {
+      e.preventDefault();
+      document.execCommand('underline');
+      return;
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onKeyDown?.(e);

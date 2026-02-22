@@ -5,6 +5,7 @@ import { Block, BlockType, isPremiumBlock } from '@/types/workspace';
 import { GripVertical, Plus, Trash2, Check, AlertCircle, Quote, Code, Table, ChevronRight, Image, Link, Layout, Database, Crown, List, ListOrdered, Sigma } from 'lucide-react';
 import { ImageBlock } from './ImageBlock';
 import { EmbedBlock } from './EmbedBlock';
+import { TableBlock } from './TableBlock';
 import { AIWriteButton } from './AIWriteButton';
 import { RichTextInput } from './RichTextInput';
 import { SlashCommandMenu } from './SlashCommandMenu';
@@ -364,6 +365,15 @@ export function BlockEditor({
     return (
       <div ref={setNodeRef} style={dragStyle}>
         <EmbedBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
+      </div>
+    );
+  }
+
+  // ── TABLE ──
+  if (block.type === 'table') {
+    return (
+      <div ref={setNodeRef} style={dragStyle}>
+        <TableBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
       </div>
     );
   }

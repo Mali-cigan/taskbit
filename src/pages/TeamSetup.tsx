@@ -25,9 +25,12 @@ export default function TeamSetup() {
   const [enableSSO, setEnableSSO] = useState(false);
   const [ssoProvider, setSsoProvider] = useState<'saml' | 'oauth'>('saml');
   const [ssoDomain, setSsoDomain] = useState('');
+  const [autoJoinDomain, setAutoJoinDomain] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  const seatCount = members.filter(m => m.email.trim()).length || 1;
+  // Count owner (1) + members with valid emails
+  const memberCount = members.filter(m => m.email.trim()).length;
+  const seatCount = memberCount + 1; // +1 for the owner
   const pricePerSeat = 20;
   const totalPrice = seatCount * pricePerSeat;
 
@@ -58,15 +61,15 @@ export default function TeamSetup() {
 
     setIsCreating(true);
     try {
-      // Create checkout session for team subscription
       const { data, error } = await supabase.functions.invoke('create-team-checkout', {
         body: {
-          seatCount: Math.max(validMembers.length, 1),
+          seatCount,
           workspaceName: workspaceName.trim(),
           members: validMembers,
           ssoEnabled: enableSSO,
           ssoProvider: enableSSO ? ssoProvider : null,
           ssoDomain: enableSSO ? ssoDomain : null,
+          autoJoinDomain: autoJoinDomain.trim() || null,
         },
       });
 
@@ -196,6 +199,33 @@ export default function TeamSetup() {
           </CardContent>
         </Card>
 
+        {/* Domain Auto-Join */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Building className="w-5 h-5" />
+              Domain Auto-Join
+            </CardTitle>
+            <CardDescription>
+              Allow anyone with a matching email domain to automatically join your team
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="autoJoinDomain">Email Domain</Label>
+              <Input
+                id="autoJoinDomain"
+                value={autoJoinDomain}
+                onChange={(e) => setAutoJoinDomain(e.target.value)}
+                placeholder="yourcompany.com"
+              />
+              <p className="text-xs text-muted-foreground">
+                Users with @{autoJoinDomain || 'yourcompany.com'} emails will automatically join your workspace and be added to your billing.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* SSO Configuration */}
         <Card>
           <CardHeader>
@@ -277,9 +307,21 @@ export default function TeamSetup() {
           <CardContent>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Team seats</span>
-                <span>{seatCount} × ${pricePerSeat}/month</span>
+                <span className="text-muted-foreground">Owner (you)</span>
+                <span>${pricePerSeat}/month</span>
               </div>
+              {memberCount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Team members ({memberCount})</span>
+                  <span>{memberCount} × ${pricePerSeat}/month</span>
+                </div>
+              )}
+              {autoJoinDomain && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Auto-join (@{autoJoinDomain})</span>
+                  <span className="text-accent">${pricePerSeat}/person when they join</span>
+                </div>
+              )}
               {enableSSO && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">SSO Authentication</span>
@@ -290,6 +332,9 @@ export default function TeamSetup() {
                 <span>Total per month</span>
                 <span>${totalPrice}/month</span>
               </div>
+              <p className="text-xs text-muted-foreground">
+                ${pricePerSeat} per person per month. New members who auto-join will be added to your bill automatically.
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -313,7 +358,7 @@ export default function TeamSetup() {
               </>
             ) : (
               <>
-                Continue to Payment
+                Continue to Payment — ${totalPrice}/mo
               </>
             )}
           </Button>

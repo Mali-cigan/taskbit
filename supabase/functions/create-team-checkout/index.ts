@@ -47,7 +47,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { seatCount, workspaceName, members } = body;
+    const { seatCount, workspaceName, members, autoJoinDomain } = body;
 
     // Support both old (teamEmails) and new (members) format
     const teamEmails: string[] = members 
@@ -129,6 +129,7 @@ serve(async (req) => {
       workspace_name: workspaceName || "Team Workspace",
       team_emails: JSON.stringify(teamEmails),
       seat_count: actualSeatCount.toString(),
+      auto_join_domain: autoJoinDomain || "",
     };
 
     const session = await stripe.checkout.sessions.create({
