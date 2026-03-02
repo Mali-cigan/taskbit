@@ -276,8 +276,16 @@ serve(async (req) => {
     }
 
     // Auto-join: check if user's email domain matches any workspace's auto_join_domain
+    const PUBLIC_EMAIL_DOMAINS = new Set([
+      "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk", "yahoo.fr",
+      "hotmail.com", "outlook.com", "live.com", "msn.com", "aol.com",
+      "icloud.com", "me.com", "mac.com", "mail.com", "protonmail.com",
+      "proton.me", "zoho.com", "yandex.com", "gmx.com", "gmx.net",
+      "tutanota.com", "fastmail.com", "hey.com",
+    ]);
+
     const emailDomain = email.split("@")[1]?.toLowerCase();
-    if (emailDomain) {
+    if (emailDomain && !PUBLIC_EMAIL_DOMAINS.has(emailDomain)) {
       const { data: matchingWorkspaces } = await admin
         .from("workspaces")
         .select("id, auto_join_domain")
