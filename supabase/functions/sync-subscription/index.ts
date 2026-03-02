@@ -275,6 +275,83 @@ serve(async (req) => {
       throw new Error("Failed to update subscription");
     }
 
+    // Auto-join: check if user's email domain matches any workspace's auto_join_domain
+    const emailDomain = email.split("@")[1]?.toLowerCase();
+    if (emailDomain) {
+      const { data: matchingWorkspaces } = await admin
+        .from("workspaces")
+        .select("id, auto_join_domain")
+        .eq("auto_join_domain", emailDomain);
+
+      if (matchingWorkspaces && matchingWorkspaces.length > 0) {
+        for (const ws of matchingWorkspaces) {
+          // Check if user is already a member or is the owner
+          const { data: existingMember } = await admin
+            .from("workspace_members")
+            .select("id")
+            .eq("workspace_id", ws.id)
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (existingMember) continue;
+
+          // Check if owner — skip if they own it
+          const { data: workspace } = await admin
+            .from("workspaces")
+            .select("owner_id")
+            .eq("id", ws.id)
+            .single();
+
+          if (workspace?.owner_id === user.id) continue;
+
+          // Check seat capacity
+          const { data: teamSub } = await admin
+            .from("team_subscriptions")
+            .select("seat_count")
+            .eq("workspace_id", ws.id)
+            .maybeSingle();
+
+          const { count: currentMembers } = await admin
+            .from("workspace_members")
+            .select("id", { count: "exact", head: true })
+            .eq("workspace_id", ws.id)
+            .eq("status", "active");
+
+          const seatLimit = teamSub?.seat_count ?? 0;
+          const used = (currentMembers ?? 0) + 1; // +1 for owner
+
+          if (used >= seatLimit) {
+            console.log(`Workspace ${ws.id} is at seat capacity (${seatLimit}), skipping auto-join for ${email}`);
+            continue;
+          }
+
+          // Add user as active member
+          const { error: insertErr } = await admin
+            .from("workspace_members")
+            .insert({
+              workspace_id: ws.id,
+              user_id: user.id,
+              email: email,
+              role: "member",
+              status: "active",
+              joined_at: new Date().toISOString(),
+            });
+
+          if (insertErr) {
+            console.error(`Failed to auto-join user ${email} to workspace ${ws.id}:`, insertErr);
+          } else {
+            console.log(`Auto-joined user ${email} to workspace ${ws.id} via domain ${emailDomain}`);
+            // Also update user's plan to team
+            plan = "team";
+            await admin
+              .from("user_subscriptions")
+              .update({ plan: "team" })
+              .eq("user_id", user.id);
+          }
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({ plan, status, stripe_customer_id: customerId, stripe_subscription_id: stripeSubscriptionId }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
