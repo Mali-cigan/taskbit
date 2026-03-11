@@ -23,6 +23,8 @@ const Index = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const didSyncRef = useRef(false);
+  const isOnline = useOnlineStatus();
+  usePushNotifications(); // Initialize push notifications for native apps
 
   // Redirect to auth if not logged in
   useEffect(() => {
