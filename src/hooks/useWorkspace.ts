@@ -296,12 +296,13 @@ export function useWorkspace() {
     loadWorkspace();
   }, [user]);
 
-  // Push state to history when pages change (debounced)
+  // Push state to history and update offline cache when pages change (debounced)
   useEffect(() => {
     if (isInitialLoadRef.current || pages.length === 0) return;
     
     const timer = setTimeout(() => {
       pushHistoryState(pages);
+      cachePages(pages).catch(() => {});
     }, 500);
     
     return () => clearTimeout(timer);
