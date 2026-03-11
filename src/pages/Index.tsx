@@ -158,8 +158,18 @@ const Index = () => {
             <TooltipContent>Redo (⌘⇧Z)</TooltipContent>
           </Tooltip>
           <div className="flex-1" />
-          <span className="text-xs text-muted-foreground">
-            Synced across devices
+          <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+            {isOnline ? (
+              <>
+                <Wifi className="h-3 w-3 text-green-500" />
+                Synced across devices
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-3 w-3 text-orange-500" />
+                Offline — changes cached locally
+              </>
+            )}
           </span>
         </div>
         <PageEditor
