@@ -196,16 +196,32 @@ export function useWorkspace() {
         setPages(loadedPages);
         resetHistory(loadedPages);
         
+        // Cache for offline use
+        cachePages(loadedPages).catch(() => {});
+        
         if (!activePageId && loadedPages.length > 0) {
           setActivePageId(loadedPages[0].id);
         }
       } catch (error) {
         console.error('Error loading workspace:', error);
-        toast({
-          title: 'Error loading workspace',
-          description: 'Failed to load your pages. Please try refreshing.',
-          variant: 'destructive',
-        });
+        
+        // Try loading from offline cache as fallback
+        const cached = await getCachedPages();
+        if (cached && cached.length > 0) {
+          setPages(cached);
+          resetHistory(cached);
+          if (!activePageId) setActivePageId(cached[0].id);
+          toast({
+            title: 'Offline mode',
+            description: 'Showing cached pages. Changes won\'t sync until you\'re back online.',
+          });
+        } else {
+          toast({
+            title: 'Error loading workspace',
+            description: 'Failed to load your pages. Please try refreshing.',
+            variant: 'destructive',
+          });
+        }
       } finally {
         setIsLoading(false);
         isInitialLoadRef.current = false;
