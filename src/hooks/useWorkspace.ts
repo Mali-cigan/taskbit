@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { useRealtimeWorkspace } from './useRealtimeWorkspace';
 import { useUndoRedo } from './useUndoRedo';
+import { cachePages, getCachedPages } from '@/lib/offlineCache';
 
 // Database types for pages and blocks
 interface DbPage {
@@ -195,16 +196,32 @@ export function useWorkspace() {
         setPages(loadedPages);
         resetHistory(loadedPages);
         
+        // Cache for offline use
+        cachePages(loadedPages).catch(() => {});
+        
         if (!activePageId && loadedPages.length > 0) {
           setActivePageId(loadedPages[0].id);
         }
       } catch (error) {
         console.error('Error loading workspace:', error);
-        toast({
-          title: 'Error loading workspace',
-          description: 'Failed to load your pages. Please try refreshing.',
-          variant: 'destructive',
-        });
+        
+        // Try loading from offline cache as fallback
+        const cached = await getCachedPages();
+        if (cached && cached.length > 0) {
+          setPages(cached);
+          resetHistory(cached);
+          if (!activePageId) setActivePageId(cached[0].id);
+          toast({
+            title: 'Offline mode',
+            description: 'Showing cached pages. Changes won\'t sync until you\'re back online.',
+          });
+        } else {
+          toast({
+            title: 'Error loading workspace',
+            description: 'Failed to load your pages. Please try refreshing.',
+            variant: 'destructive',
+          });
+        }
       } finally {
         setIsLoading(false);
         isInitialLoadRef.current = false;
@@ -279,12 +296,13 @@ export function useWorkspace() {
     loadWorkspace();
   }, [user]);
 
-  // Push state to history when pages change (debounced)
+  // Push state to history and update offline cache when pages change (debounced)
   useEffect(() => {
     if (isInitialLoadRef.current || pages.length === 0) return;
     
     const timer = setTimeout(() => {
       pushHistoryState(pages);
+      cachePages(pages).catch(() => {});
     }, 500);
     
     return () => clearTimeout(timer);
