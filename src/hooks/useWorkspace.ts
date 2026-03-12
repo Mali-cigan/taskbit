@@ -440,7 +440,7 @@ export function useWorkspace() {
       const payload = { id: pageId, title, updated_at: new Date().toISOString(), user_id: user.id };
       await executeOrQueue(
         { table: 'pages', action: 'update', payload },
-        () => supabase.from('pages').update({ title, updated_at: new Date().toISOString() }).eq('id', pageId).eq('user_id', user.id),
+        async () => supabase.from('pages').update({ title, updated_at: new Date().toISOString() }).eq('id', pageId).eq('user_id', user.id).then(r => ({ error: r.error })),
       );
     } catch (error) {
       console.error('Error updating page title:', error);
