@@ -10,6 +10,7 @@ import Pricing from "./pages/Pricing";
 import Settings from "./pages/Settings";
 import TeamSetup from "./pages/TeamSetup";
 import AdminDashboard from "./pages/AdminDashboard";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="/team-setup" element={<TeamSetup />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/install" element={<Install />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

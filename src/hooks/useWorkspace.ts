@@ -6,6 +6,8 @@ import { toast } from '@/hooks/use-toast';
 import { useRealtimeWorkspace } from './useRealtimeWorkspace';
 import { useUndoRedo } from './useUndoRedo';
 import { cachePages, getCachedPages } from '@/lib/offlineCache';
+import { useOfflineSync } from './useOfflineSync';
+import { enqueueOperation } from '@/lib/offlineQueue';
 
 // Database types for pages and blocks
 interface DbPage {
@@ -47,6 +49,7 @@ export function useWorkspace() {
   const [activePageId, setActivePageId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isInitialLoadRef = useRef(true);
+  const { isOnline, executeOrQueue } = useOfflineSync();
 
   // Undo/redo for pages state
   const {
@@ -434,13 +437,11 @@ export function useWorkspace() {
     markLocalChange('pages', pageId);
 
     try {
-      const { error } = await supabase
-        .from('pages')
-        .update({ title, updated_at: new Date().toISOString() })
-        .eq('id', pageId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      const payload = { id: pageId, title, updated_at: new Date().toISOString(), user_id: user.id };
+      await executeOrQueue(
+        { table: 'pages', action: 'update', payload },
+        async () => supabase.from('pages').update({ title, updated_at: new Date().toISOString() }).eq('id', pageId).eq('user_id', user.id).then(r => ({ error: r.error })),
+      );
     } catch (error) {
       console.error('Error updating page title:', error);
     }
@@ -549,19 +550,21 @@ export function useWorkspace() {
 
     try {
       const dbUpdates: Record<string, unknown> = {
+        id: blockId,
         updated_at: new Date().toISOString(),
+        user_id: user.id,
       };
       if (updates.content !== undefined) dbUpdates.content = updates.content;
       if (updates.type !== undefined) dbUpdates.type = updates.type;
       if (updates.checked !== undefined) dbUpdates.checked = updates.checked;
 
-      const { error } = await supabase
-        .from('blocks')
-        .update(dbUpdates)
-        .eq('id', blockId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      await executeOrQueue(
+        { table: 'blocks', action: 'update', payload: dbUpdates },
+        async () => {
+          const { id: _id, user_id: _uid, ...rest } = dbUpdates;
+          return supabase.from('blocks').update(rest as never).eq('id', blockId).eq('user_id', user.id).then(r => ({ error: r.error }));
+        },
+      );
     } catch (error) {
       console.error('Error updating block:', error);
     }
