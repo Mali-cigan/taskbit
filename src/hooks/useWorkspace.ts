@@ -560,9 +560,9 @@ export function useWorkspace() {
 
       await executeOrQueue(
         { table: 'blocks', action: 'update', payload: dbUpdates },
-        () => {
+        async () => {
           const { id: _id, user_id: _uid, ...rest } = dbUpdates;
-          return supabase.from('blocks').update(rest as never).eq('id', blockId).eq('user_id', user.id);
+          return supabase.from('blocks').update(rest as never).eq('id', blockId).eq('user_id', user.id).then(r => ({ error: r.error }));
         },
       );
     } catch (error) {
