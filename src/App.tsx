@@ -29,6 +29,7 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="/team-setup" element={<TeamSetup />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/install" element={<Install />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

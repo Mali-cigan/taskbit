@@ -6,6 +6,8 @@ import { toast } from '@/hooks/use-toast';
 import { useRealtimeWorkspace } from './useRealtimeWorkspace';
 import { useUndoRedo } from './useUndoRedo';
 import { cachePages, getCachedPages } from '@/lib/offlineCache';
+import { useOfflineSync } from './useOfflineSync';
+import { enqueueOperation } from '@/lib/offlineQueue';
 
 // Database types for pages and blocks
 interface DbPage {
