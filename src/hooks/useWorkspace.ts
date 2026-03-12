@@ -437,13 +437,11 @@ export function useWorkspace() {
     markLocalChange('pages', pageId);
 
     try {
-      const { error } = await supabase
-        .from('pages')
-        .update({ title, updated_at: new Date().toISOString() })
-        .eq('id', pageId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      const payload = { id: pageId, title, updated_at: new Date().toISOString(), user_id: user.id };
+      await executeOrQueue(
+        { table: 'pages', action: 'update', payload },
+        () => supabase.from('pages').update({ title, updated_at: new Date().toISOString() }).eq('id', pageId).eq('user_id', user.id),
+      );
     } catch (error) {
       console.error('Error updating page title:', error);
     }
