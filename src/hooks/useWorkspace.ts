@@ -550,19 +550,21 @@ export function useWorkspace() {
 
     try {
       const dbUpdates: Record<string, unknown> = {
+        id: blockId,
         updated_at: new Date().toISOString(),
+        user_id: user.id,
       };
       if (updates.content !== undefined) dbUpdates.content = updates.content;
       if (updates.type !== undefined) dbUpdates.type = updates.type;
       if (updates.checked !== undefined) dbUpdates.checked = updates.checked;
 
-      const { error } = await supabase
-        .from('blocks')
-        .update(dbUpdates)
-        .eq('id', blockId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      await executeOrQueue(
+        { table: 'blocks', action: 'update', payload: dbUpdates },
+        () => {
+          const { id: _id, user_id: _uid, ...rest } = dbUpdates;
+          return supabase.from('blocks').update(rest as never).eq('id', blockId).eq('user_id', user.id);
+        },
+      );
     } catch (error) {
       console.error('Error updating block:', error);
     }
