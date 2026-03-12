@@ -49,6 +49,7 @@ export function useWorkspace() {
   const [activePageId, setActivePageId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isInitialLoadRef = useRef(true);
+  const { isOnline, executeOrQueue } = useOfflineSync();
 
   // Undo/redo for pages state
   const {
