@@ -49,6 +49,8 @@ const blockTypeConfig: Record<BlockType, { placeholder: string; className: strin
   embed: { placeholder: 'Paste embed URL...', className: 'text-base' },
   kanban: { placeholder: 'Kanban board', className: '' },
   database: { placeholder: 'Database', className: '' },
+  'drive-file': { placeholder: 'Google Drive file', className: '' },
+  'calendar-embed': { placeholder: 'Calendar events', className: '' },
 };
 
 const basicBlockTypes: { type: BlockType; label: string; icon: React.ReactNode }[] = [
