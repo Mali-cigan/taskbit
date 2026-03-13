@@ -18,7 +18,10 @@ export type BlockType =
   // New basic blocks
   | 'bullet'
   | 'numbered'
-  | 'math';
+  | 'math'
+  // Google integration blocks
+  | 'drive-file'
+  | 'calendar-embed';
 
 export interface Block {
   id: string;
