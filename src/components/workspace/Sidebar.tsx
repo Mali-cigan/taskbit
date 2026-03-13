@@ -71,6 +71,9 @@ export function Sidebar({
         </nav>
       </div>
 
+      {/* Gmail Widget */}
+      {isPro && <GmailWidget />}
+
       {/* User Menu & Create Page Button */}
       <div className="p-3 border-t border-sidebar-border space-y-2">
         {user && (
