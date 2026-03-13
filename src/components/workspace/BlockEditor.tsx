@@ -75,6 +75,8 @@ const premiumBlockTypes: { type: BlockType; label: string; icon: React.ReactNode
   { type: 'embed', label: 'Embed', icon: <Link className="w-4 h-4" /> },
   { type: 'kanban', label: 'Kanban', icon: <Layout className="w-4 h-4" /> },
   { type: 'database', label: 'Database', icon: <Database className="w-4 h-4" /> },
+  { type: 'drive-file', label: 'Drive File', icon: <HardDrive className="w-4 h-4" /> },
+  { type: 'calendar-embed', label: 'Calendar', icon: <Calendar className="w-4 h-4" /> },
 ];
 
 const calloutStyles = {
