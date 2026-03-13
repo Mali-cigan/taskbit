@@ -2,10 +2,12 @@ import { useRef, useState, useEffect, KeyboardEvent } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Block, BlockType, isPremiumBlock } from '@/types/workspace';
-import { GripVertical, Plus, Trash2, Check, AlertCircle, Quote, Code, Table, ChevronRight, Image, Link, Layout, Database, Crown, List, ListOrdered, Sigma } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Check, AlertCircle, Quote, Code, Table, ChevronRight, Image, Link, Layout, Database, Crown, List, ListOrdered, Sigma, HardDrive, Calendar } from 'lucide-react';
 import { ImageBlock } from './ImageBlock';
 import { EmbedBlock } from './EmbedBlock';
 import { TableBlock } from './TableBlock';
+import { DriveAttachBlock } from './DriveAttachBlock';
+import { CalendarBlock } from './CalendarBlock';
 import { AIWriteButton } from './AIWriteButton';
 import { RichTextInput } from './RichTextInput';
 import { SlashCommandMenu } from './SlashCommandMenu';
@@ -47,6 +49,8 @@ const blockTypeConfig: Record<BlockType, { placeholder: string; className: strin
   embed: { placeholder: 'Paste embed URL...', className: 'text-base' },
   kanban: { placeholder: 'Kanban board', className: '' },
   database: { placeholder: 'Database', className: '' },
+  'drive-file': { placeholder: 'Google Drive file', className: '' },
+  'calendar-embed': { placeholder: 'Calendar events', className: '' },
 };
 
 const basicBlockTypes: { type: BlockType; label: string; icon: React.ReactNode }[] = [
@@ -71,6 +75,8 @@ const premiumBlockTypes: { type: BlockType; label: string; icon: React.ReactNode
   { type: 'embed', label: 'Embed', icon: <Link className="w-4 h-4" /> },
   { type: 'kanban', label: 'Kanban', icon: <Layout className="w-4 h-4" /> },
   { type: 'database', label: 'Database', icon: <Database className="w-4 h-4" /> },
+  { type: 'drive-file', label: 'Drive File', icon: <HardDrive className="w-4 h-4" /> },
+  { type: 'calendar-embed', label: 'Calendar', icon: <Calendar className="w-4 h-4" /> },
 ];
 
 const calloutStyles = {
@@ -374,6 +380,24 @@ export function BlockEditor({
     return (
       <div ref={setNodeRef} style={dragStyle}>
         <TableBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
+      </div>
+    );
+  }
+
+  // ── DRIVE FILE ──
+  if (block.type === 'drive-file') {
+    return (
+      <div ref={setNodeRef} style={dragStyle}>
+        <DriveAttachBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
+      </div>
+    );
+  }
+
+  // ── CALENDAR EMBED ──
+  if (block.type === 'calendar-embed') {
+    return (
+      <div ref={setNodeRef} style={dragStyle}>
+        <CalendarBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
       </div>
     );
   }

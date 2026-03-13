@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useNavigate, Link } from 'react-router-dom';
+import { GmailWidget } from './GmailWidget';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +70,9 @@ export function Sidebar({
             </div>)}
         </nav>
       </div>
+
+      {/* Gmail Widget */}
+      {isPro && <GmailWidget />}
 
       {/* User Menu & Create Page Button */}
       <div className="p-3 border-t border-sidebar-border space-y-2">

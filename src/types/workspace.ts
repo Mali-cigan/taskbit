@@ -18,7 +18,10 @@ export type BlockType =
   // New basic blocks
   | 'bullet'
   | 'numbered'
-  | 'math';
+  | 'math'
+  // Google integration blocks
+  | 'drive-file'
+  | 'calendar-embed';
 
 export interface Block {
   id: string;
@@ -53,6 +56,8 @@ export const PREMIUM_BLOCK_TYPES: BlockType[] = [
   'kanban',
   'database',
   'math',
+  'drive-file',
+  'calendar-embed',
 ];
 
 export const isPremiumBlock = (type: BlockType): boolean => {

@@ -7,8 +7,9 @@ import { useWorkspace } from '@/hooks/useWorkspace';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Undo2, Redo2, Wifi, WifiOff } from 'lucide-react';
+import { Loader2, Undo2, Redo2, Wifi, WifiOff, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { UnifiedSearch } from '@/components/workspace/UnifiedSearch';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import {
@@ -19,6 +20,7 @@ import {
 
 const Index = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -80,9 +82,13 @@ const Index = () => {
     canRedo,
   } = useWorkspace();
 
-  // Keyboard shortcuts for undo/redo
+  // Keyboard shortcuts for undo/redo and search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
@@ -158,6 +164,21 @@ const Index = () => {
             <TooltipContent>Redo (⌘⇧Z)</TooltipContent>
           </Tooltip>
           <div className="flex-1" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 text-xs text-muted-foreground"
+                onClick={() => setSearchOpen(true)}
+              >
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Search</span>
+                <kbd className="hidden sm:inline-flex h-5 items-center rounded border border-border px-1 font-mono text-[10px]">⌘K</kbd>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Search (⌘K)</TooltipContent>
+          </Tooltip>
           <span className="text-xs text-muted-foreground flex items-center gap-1.5">
             {isOnline ? (
               <>
@@ -186,6 +207,12 @@ const Index = () => {
         />
       </div>
       <AIChatWidget />
+      <UnifiedSearch
+        pages={pages}
+        onSelectPage={setActivePageId}
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
     </div>
   );
 };
