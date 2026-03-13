@@ -7,8 +7,9 @@ import { useWorkspace } from '@/hooks/useWorkspace';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Undo2, Redo2, Wifi, WifiOff } from 'lucide-react';
+import { Loader2, Undo2, Redo2, Wifi, WifiOff, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { UnifiedSearch } from '@/components/workspace/UnifiedSearch';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import {
