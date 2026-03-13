@@ -30,6 +30,8 @@ const allCommands: { type: BlockType; label: string; icon: React.ReactNode; prem
   { type: 'embed', label: 'Embed', icon: <Link className="w-4 h-4" />, premium: true },
   { type: 'kanban', label: 'Kanban', icon: <Layout className="w-4 h-4" />, premium: true },
   { type: 'database', label: 'Database', icon: <Database className="w-4 h-4" />, premium: true },
+  { type: 'drive-file', label: 'Drive File', icon: <HardDrive className="w-4 h-4" />, premium: true },
+  { type: 'calendar-embed', label: 'Calendar', icon: <Calendar className="w-4 h-4" />, premium: true },
 ];
 
 export function SlashCommandMenu({ isOpen, onClose, onSelect, isPro, position }: SlashCommandMenuProps) {
