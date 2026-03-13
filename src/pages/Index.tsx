@@ -164,6 +164,21 @@ const Index = () => {
             <TooltipContent>Redo (⌘⇧Z)</TooltipContent>
           </Tooltip>
           <div className="flex-1" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 text-xs text-muted-foreground"
+                onClick={() => setSearchOpen(true)}
+              >
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Search</span>
+                <kbd className="hidden sm:inline-flex h-5 items-center rounded border border-border px-1 font-mono text-[10px]">⌘K</kbd>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Search (⌘K)</TooltipContent>
+          </Tooltip>
           <span className="text-xs text-muted-foreground flex items-center gap-1.5">
             {isOnline ? (
               <>
