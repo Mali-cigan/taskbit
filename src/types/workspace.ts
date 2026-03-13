@@ -56,6 +56,8 @@ export const PREMIUM_BLOCK_TYPES: BlockType[] = [
   'kanban',
   'database',
   'math',
+  'drive-file',
+  'calendar-embed',
 ];
 
 export const isPremiumBlock = (type: BlockType): boolean => {
