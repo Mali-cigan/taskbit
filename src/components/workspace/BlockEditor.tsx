@@ -384,6 +384,24 @@ export function BlockEditor({
     );
   }
 
+  // ── DRIVE FILE ──
+  if (block.type === 'drive-file') {
+    return (
+      <div ref={setNodeRef} style={dragStyle}>
+        <DriveAttachBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
+      </div>
+    );
+  }
+
+  // ── CALENDAR EMBED ──
+  if (block.type === 'calendar-embed') {
+    return (
+      <div ref={setNodeRef} style={dragStyle}>
+        <CalendarBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />
+      </div>
+    );
+  }
+
   // ── CALLOUT ──
   if (block.type === 'callout') {
     const calloutType = block.calloutType || 'info';
