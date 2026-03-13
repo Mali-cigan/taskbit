@@ -82,9 +82,13 @@ const Index = () => {
     canRedo,
   } = useWorkspace();
 
-  // Keyboard shortcuts for undo/redo
+  // Keyboard shortcuts for undo/redo and search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
