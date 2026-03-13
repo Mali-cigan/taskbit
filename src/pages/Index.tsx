@@ -207,8 +207,12 @@ const Index = () => {
         />
       </div>
       <AIChatWidget />
+      <UnifiedSearch
+        pages={pages}
+        onSelectPage={setActivePageId}
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
     </div>
   );
 };
-
-export default Index;
