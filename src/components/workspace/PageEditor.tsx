@@ -74,6 +74,7 @@ export function PageEditor({
   const { isPro } = useSubscription();
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
