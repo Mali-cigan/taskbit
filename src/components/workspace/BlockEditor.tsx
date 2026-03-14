@@ -473,7 +473,7 @@ export function BlockEditor({
           className={config.className}
           autoFocus={autoFocus}
         />
-        <SlashCommandMenu isOpen={slashOpen} onClose={() => setSlashOpen(false)} onSelect={handleSlashSelect} isPro={isPro} />
+        <SlashCommandMenu isOpen={slashOpen} onClose={() => setSlashOpen(false)} onSelect={handleSlashSelect} />
         <DeleteButton className="absolute -right-8 top-0.5" />
       </div>
     );
