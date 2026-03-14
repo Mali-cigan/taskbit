@@ -141,8 +141,8 @@ export function BlockEditor({
   onAddBlock,
   onFocus,
   autoFocus,
-  isPro = false,
 }: BlockEditorProps) {
+  const { isPro } = useSubscription();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [slashOpen, setSlashOpen] = useState(false);
   const config = blockTypeConfig[block.type];
