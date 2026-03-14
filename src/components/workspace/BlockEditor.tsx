@@ -549,7 +549,6 @@ export function BlockEditor({
         isOpen={slashOpen}
         onClose={() => setSlashOpen(false)}
         onSelect={handleSlashSelect}
-        isPro={isPro}
       />
 
       {/* Delete button */}
