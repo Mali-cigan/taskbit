@@ -3,6 +3,7 @@ import { Page, Block, BlockType } from '@/types/workspace';
 import { BlockEditor } from './BlockEditor';
 import { Plus, Menu } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
