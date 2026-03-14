@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useNavigate, Link } from 'react-router-dom';
 import { GmailWidget } from './GmailWidget';
+import { DriveSidebarWidget } from './DriveSidebarWidget';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,8 +72,9 @@ export function Sidebar({
         </nav>
       </div>
 
-      {/* Gmail Widget */}
+      {/* Gmail & Drive Widgets */}
       {isPro && <GmailWidget />}
+      {isPro && <DriveSidebarWidget />}
 
       {/* User Menu & Create Page Button */}
       <div className="p-3 border-t border-sidebar-border space-y-2">

@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Block } from '@/types/workspace';
-import { Calendar, RefreshCw, Trash2, Clock, MapPin, Loader2 } from 'lucide-react';
+import { Calendar, RefreshCw, Trash2, Clock, MapPin, Loader2, Plus, X } from 'lucide-react';
 import { useGoogleIntegrations } from '@/hooks/useGoogleIntegrations';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface CalendarBlockProps {
   block: Block;
@@ -20,10 +23,13 @@ interface CalendarEvent {
 }
 
 export function CalendarBlock({ block, onUpdate, onDelete }: CalendarBlockProps) {
-  const { isConnected, fetchCalendarEvents } = useGoogleIntegrations();
+  const { isConnected, fetchCalendarEvents, createCalendarEvent } = useGoogleIntegrations();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newEvent, setNewEvent] = useState({ title: '', start: '', end: '', location: '', description: '' });
 
   const loadEvents = useCallback(async () => {
     if (!isConnected) return;
@@ -32,7 +38,6 @@ export function CalendarBlock({ block, onUpdate, onDelete }: CalendarBlockProps)
       const evts = await fetchCalendarEvents();
       setEvents(evts.slice(0, 5));
       setLastRefresh(new Date());
-      // Store a timestamp in content so the block knows it has data
       onUpdate({ content: JSON.stringify({ lastRefresh: new Date().toISOString(), count: evts.length }) });
     } catch {
       // ignore
@@ -43,10 +48,34 @@ export function CalendarBlock({ block, onUpdate, onDelete }: CalendarBlockProps)
 
   useEffect(() => {
     loadEvents();
-    // Auto-refresh every 10 minutes
     const interval = setInterval(loadEvents, 10 * 60 * 1000);
     return () => clearInterval(interval);
   }, [loadEvents]);
+
+  const handleCreateEvent = async () => {
+    if (!newEvent.title || !newEvent.start || !newEvent.end) {
+      toast.error('Title, start, and end are required');
+      return;
+    }
+    setCreating(true);
+    try {
+      await createCalendarEvent({
+        title: newEvent.title,
+        start: newEvent.start,
+        end: newEvent.end,
+        location: newEvent.location || undefined,
+        description: newEvent.description || undefined,
+      });
+      toast.success('Event created!');
+      setNewEvent({ title: '', start: '', end: '', location: '', description: '' });
+      setShowCreate(false);
+      loadEvents();
+    } catch (err) {
+      toast.error('Failed to create event');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   if (!isConnected) {
     return (
@@ -79,6 +108,13 @@ export function CalendarBlock({ block, onUpdate, onDelete }: CalendarBlockProps)
           <Calendar className="w-4 h-4 text-green-500" />
           <span className="text-sm font-medium flex-1">Upcoming Events</span>
           <button
+            onClick={() => setShowCreate(!showCreate)}
+            className="p-1 rounded hover:bg-muted text-muted-foreground"
+            title="Create event"
+          >
+            {showCreate ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+          </button>
+          <button
             onClick={loadEvents}
             disabled={loading}
             className="p-1 rounded hover:bg-muted text-muted-foreground"
@@ -91,6 +127,48 @@ export function CalendarBlock({ block, onUpdate, onDelete }: CalendarBlockProps)
             </span>
           )}
         </div>
+
+        {/* Create Event Form */}
+        {showCreate && (
+          <div className="p-3 border-b border-border bg-muted/20 space-y-2">
+            <Input
+              value={newEvent.title}
+              onChange={e => setNewEvent(p => ({ ...p, title: e.target.value }))}
+              placeholder="Event title"
+              className="h-8 text-sm"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-0.5 block">Start</label>
+                <Input
+                  type="datetime-local"
+                  value={newEvent.start}
+                  onChange={e => setNewEvent(p => ({ ...p, start: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-0.5 block">End</label>
+                <Input
+                  type="datetime-local"
+                  value={newEvent.end}
+                  onChange={e => setNewEvent(p => ({ ...p, end: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+            <Input
+              value={newEvent.location}
+              onChange={e => setNewEvent(p => ({ ...p, location: e.target.value }))}
+              placeholder="Location (optional)"
+              className="h-8 text-sm"
+            />
+            <Button size="sm" onClick={handleCreateEvent} disabled={creating} className="w-full">
+              {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Plus className="w-3.5 h-3.5 mr-1" />}
+              Create Event
+            </Button>
+          </div>
+        )}
 
         {/* Events */}
         <div className="divide-y divide-border">
