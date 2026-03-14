@@ -11,6 +11,7 @@ import { CalendarBlock } from './CalendarBlock';
 import { AIWriteButton } from './AIWriteButton';
 import { RichTextInput } from './RichTextInput';
 import { SlashCommandMenu } from './SlashCommandMenu';
+import { useSubscription } from '@/hooks/useSubscription';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
