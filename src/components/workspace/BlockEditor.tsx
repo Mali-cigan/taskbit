@@ -28,7 +28,6 @@ interface BlockEditorProps {
   onAddBlock: (type: BlockType) => void;
   onFocus?: () => void;
   autoFocus?: boolean;
-  isPro?: boolean;
 }
 
 const blockTypeConfig: Record<BlockType, { placeholder: string; className: string }> = {
