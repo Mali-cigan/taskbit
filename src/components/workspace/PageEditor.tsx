@@ -128,7 +128,33 @@ export function PageEditor({
       </header>
 
       {/* Page Content */}
-      <div className="max-w-3xl mx-auto px-12 py-16">
+      <div
+        className={cn("max-w-3xl mx-auto px-12 py-16", dragOver && "ring-2 ring-primary/30 rounded-lg")}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('application/x-drive-file')) {
+            e.preventDefault();
+            setDragOver(true);
+          }
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          setDragOver(false);
+          const data = e.dataTransfer.getData('application/x-drive-file');
+          if (data) {
+            e.preventDefault();
+            // Create a drive-file block with the file data
+            onAddBlock('drive-file' as BlockType);
+            // We need to set content after creation - use a small delay
+            setTimeout(() => {
+              const blocks = page.blocks;
+              const lastBlock = blocks[blocks.length - 1];
+              if (lastBlock) {
+                onUpdateBlock(lastBlock.id, { content: data });
+              }
+            }, 100);
+          }
+        }}
+      >
         {/* Icon & Title */}
         <div className="mb-6 flex items-center gap-3">
           <Popover>
