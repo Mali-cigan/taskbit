@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Mail, RefreshCw, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Mail, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { useGoogleIntegrations } from '@/hooks/useGoogleIntegrations';
 import { cn } from '@/lib/utils';
 
@@ -9,6 +9,7 @@ export function GmailWidget() {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const prevCountRef = useRef(0);
 
   const loadEmails = useCallback(async () => {
     if (!isConnected) return;
@@ -16,7 +17,15 @@ export function GmailWidget() {
     try {
       const msgs = await fetchGmailMessages();
       setEmails(msgs.slice(0, 5));
-      setUnreadCount(msgs.length);
+
+      // Flash notification if new emails arrived
+      if (prevCountRef.current > 0 && msgs.length > prevCountRef.current) {
+        // Trigger a visual pulse by temporarily bumping count
+        setUnreadCount(msgs.length);
+      } else {
+        setUnreadCount(msgs.length);
+      }
+      prevCountRef.current = msgs.length;
     } catch {
       // silently fail
     } finally {
@@ -26,8 +35,8 @@ export function GmailWidget() {
 
   useEffect(() => {
     loadEmails();
-    // Refresh every 5 minutes
-    const interval = setInterval(loadEmails, 5 * 60 * 1000);
+    // Poll every 30 seconds for near-real-time updates
+    const interval = setInterval(loadEmails, 30 * 1000);
     return () => clearInterval(interval);
   }, [loadEmails]);
 
@@ -42,7 +51,7 @@ export function GmailWidget() {
         <Mail className="w-4 h-4" />
         <span className="flex-1 text-left font-medium">Gmail</span>
         {unreadCount > 0 && (
-          <span className="bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+          <span className="bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 animate-pulse">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
