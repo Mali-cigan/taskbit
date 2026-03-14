@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useNavigate, Link } from 'react-router-dom';
 import { GmailWidget } from './GmailWidget';
+import { DriveSidebarWidget } from './DriveSidebarWidget';
 import {
   DropdownMenu,
   DropdownMenuContent,
