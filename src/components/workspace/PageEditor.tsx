@@ -44,7 +44,6 @@ interface PageEditorProps {
   pageId: string;
   onToggleSidebar: () => void;
   isSidebarCollapsed: boolean;
-  isPro?: boolean;
 }
 
 const blockTypes: { type: BlockType; label: string; icon: string }[] = [
