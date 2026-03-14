@@ -11,6 +11,7 @@ import { CalendarBlock } from './CalendarBlock';
 import { AIWriteButton } from './AIWriteButton';
 import { RichTextInput } from './RichTextInput';
 import { SlashCommandMenu } from './SlashCommandMenu';
+import { useSubscription } from '@/hooks/useSubscription';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -27,7 +28,6 @@ interface BlockEditorProps {
   onAddBlock: (type: BlockType) => void;
   onFocus?: () => void;
   autoFocus?: boolean;
-  isPro?: boolean;
 }
 
 const blockTypeConfig: Record<BlockType, { placeholder: string; className: string }> = {
@@ -141,8 +141,8 @@ export function BlockEditor({
   onAddBlock,
   onFocus,
   autoFocus,
-  isPro = false,
 }: BlockEditorProps) {
+  const { isPro } = useSubscription();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [slashOpen, setSlashOpen] = useState(false);
   const config = blockTypeConfig[block.type];
@@ -473,7 +473,7 @@ export function BlockEditor({
           className={config.className}
           autoFocus={autoFocus}
         />
-        <SlashCommandMenu isOpen={slashOpen} onClose={() => setSlashOpen(false)} onSelect={handleSlashSelect} isPro={isPro} />
+        <SlashCommandMenu isOpen={slashOpen} onClose={() => setSlashOpen(false)} onSelect={handleSlashSelect} />
         <DeleteButton className="absolute -right-8 top-0.5" />
       </div>
     );
@@ -498,7 +498,7 @@ export function BlockEditor({
           className={config.className}
           autoFocus={autoFocus}
         />
-        <SlashCommandMenu isOpen={slashOpen} onClose={() => setSlashOpen(false)} onSelect={handleSlashSelect} isPro={isPro} />
+        <SlashCommandMenu isOpen={slashOpen} onClose={() => setSlashOpen(false)} onSelect={handleSlashSelect} />
         <DeleteButton className="absolute -right-8 top-0.5" />
       </div>
     );
@@ -549,7 +549,6 @@ export function BlockEditor({
         isOpen={slashOpen}
         onClose={() => setSlashOpen(false)}
         onSelect={handleSlashSelect}
-        isPro={isPro}
       />
 
       {/* Delete button */}

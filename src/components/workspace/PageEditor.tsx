@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Page, Block, BlockType } from '@/types/workspace';
 import { BlockEditor } from './BlockEditor';
 import { Plus, Menu } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +44,6 @@ interface PageEditorProps {
   pageId: string;
   onToggleSidebar: () => void;
   isSidebarCollapsed: boolean;
-  isPro?: boolean;
 }
 
 const blockTypes: { type: BlockType; label: string; icon: string }[] = [
@@ -70,8 +70,8 @@ export function PageEditor({
   pageId,
   onToggleSidebar,
   isSidebarCollapsed,
-  isPro = false,
 }: PageEditorProps) {
+  const { isPro } = useSubscription();
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -181,7 +181,6 @@ export function PageEditor({
                   onAddBlock={(type) => onAddBlock(type, block.id)}
                   onFocus={() => setFocusedBlockId(block.id)}
                   autoFocus={index === page.blocks.length - 1 && block.content === ''}
-                  isPro={isPro}
                 />
               ))}
             </SortableContext>

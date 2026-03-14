@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { BlockType, isPremiumBlock } from '@/types/workspace';
 import { AlertCircle, Quote, Code, Table, ChevronRight, Image, Link, Layout, Database, Crown, List, ListOrdered, Sigma, HardDrive, Calendar } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
 import { cn } from '@/lib/utils';
 
 interface SlashCommandMenuProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (type: BlockType) => void;
-  isPro: boolean;
   position?: { top: number; left: number };
 }
 
@@ -34,7 +34,8 @@ const allCommands: { type: BlockType; label: string; icon: React.ReactNode; prem
   { type: 'calendar-embed', label: 'Calendar', icon: <Calendar className="w-4 h-4" />, premium: true },
 ];
 
-export function SlashCommandMenu({ isOpen, onClose, onSelect, isPro, position }: SlashCommandMenuProps) {
+export function SlashCommandMenu({ isOpen, onClose, onSelect, position }: SlashCommandMenuProps) {
+  const { isPro } = useSubscription();
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
