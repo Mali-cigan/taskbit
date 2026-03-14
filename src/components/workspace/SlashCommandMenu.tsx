@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { BlockType, isPremiumBlock } from '@/types/workspace';
 import { AlertCircle, Quote, Code, Table, ChevronRight, Image, Link, Layout, Database, Crown, List, ListOrdered, Sigma, HardDrive, Calendar } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
 import { cn } from '@/lib/utils';
 
 interface SlashCommandMenuProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (type: BlockType) => void;
-  isPro: boolean;
   position?: { top: number; left: number };
 }
 
