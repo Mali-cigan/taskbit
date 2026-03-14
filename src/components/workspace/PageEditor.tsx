@@ -70,8 +70,8 @@ export function PageEditor({
   pageId,
   onToggleSidebar,
   isSidebarCollapsed,
-  isPro = false,
 }: PageEditorProps) {
+  const { isPro } = useSubscription();
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
