@@ -181,7 +181,6 @@ export function PageEditor({
                   onAddBlock={(type) => onAddBlock(type, block.id)}
                   onFocus={() => setFocusedBlockId(block.id)}
                   autoFocus={index === page.blocks.length - 1 && block.content === ''}
-                  isPro={isPro}
                 />
               ))}
             </SortableContext>
